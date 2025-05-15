@@ -80,6 +80,12 @@ for fits_path in fits_paths:
 		print(e)
 		print(fits_path)
 		break
+	
+	print(flux_single)
+	print(ivar_single)
+	print(sdss_id)
+	print(fits_path)
+	quit()
 
 # for debugging only: keep medium subset of 100 stars
 apokasc_sdss_bedell_df = apokasc_sdss_bedell_df.loc[apokasc_sdss_bedell_df['sdss_id'].isin(sdss_ids)].reset_index()

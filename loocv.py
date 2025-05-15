@@ -8,7 +8,7 @@ import shutil
 
 path = '/Users/chrislam/Desktop/cannon-ages/' 
 
-def loocv(df, wl, fluxes, ivars, label_names=["Teff", "logg", "feh", "mg_h", "Age", "Dnu"]):
+def loocv(df, wl, fluxes, ivars, label_names=["Teff", "logg", "feh", "mg_h", "Age", "Dnu", "numax"]):
     """
     Leave one out cross-validation:
     For each data point, make it the test and rest into training. 
@@ -45,39 +45,63 @@ def loocv(df, wl, fluxes, ivars, label_names=["Teff", "logg", "feh", "mg_h", "Ag
             ivar_tr = np.concatenate((ivars[:i], ivars[i+1:]))
         except:
             ivar_tr = ivars[:-1]
+        
+        flux_tr = np.array(flux_tr)
+        ivar_tr = np.array(ivar_tr)
 
         Teff_tr = np.array(df_tr[label_names[0]].values)
         logg_tr = np.array(df_tr[label_names[1]].values)
         fe_h_tr = np.array(df_tr[label_names[2]].values)
         mg_h_tr = np.array(df_tr[label_names[3]].values)
         Age_tr = np.array(df_tr[label_names[4]].values)
-        if len(label_names) > 5:
-            #numax_tr = np.array(df_tr[label_names[5]].values)
+        if len(label_names) == 7:
+            Dnu_tr = np.array(df_tr[label_names[5]].values)
+            numax_tr = np.array(df_tr[label_names[6]].values)
+            labels_tr = np.vstack((Teff_tr,logg_tr,fe_h_tr,mg_h_tr,Age_tr,Dnu_tr,numax_tr)).T
+        elif len(label_names) == 6:
             Dnu_tr = np.array(df_tr[label_names[5]].values)
             labels_tr = np.vstack((Teff_tr,logg_tr,fe_h_tr,mg_h_tr,Age_tr,Dnu_tr)).T
         elif len(label_names) == 5:
             labels_tr = np.vstack((Teff_tr,logg_tr,fe_h_tr,mg_h_tr,Age_tr)).T
-        print(labels_tr)
-        print(labels_tr.shape)
 
         # test set
         flux_test = fluxes[i]
         ivar_test = ivars[i]
+        flux_test = np.array(flux_test)
+        ivar_test = np.array(ivar_test)
 
         Teff_test = np.array(df_test[label_names[0]])
         logg_test = np.array(df_test[label_names[1]])
         fe_h_test = np.array(df_test[label_names[2]])
         mg_h_test = np.array(df_test[label_names[3]])
         Age_test = np.array(df_test[label_names[4]])
-        if len(label_names) > 5:
-            #numax_test = np.array(df_test[label_names[5]])
+        if len(label_names) == 7:
             Dnu_test = np.array(df_test[label_names[5]]) # or 6
+            numax_test = np.array(df_test[label_names[6]])
+            labels_test = np.vstack((Teff_test,logg_test,fe_h_test,mg_h_test,Age_test,Dnu_test,numax_test)).T
+        elif len(label_names) == 6:
+            Dnu_test = np.array(df_test[label_names[5]]) 
             labels_test = np.vstack((Teff_test,logg_test,fe_h_test,mg_h_test,Age_test,Dnu_test)).T
         elif len(label_names) == 5:
             labels_test = np.vstack((Teff_test,logg_test,fe_h_test,mg_h_test,Age_test)).T
         #print(labels_test)
         true_labels_arr.append(labels_test)
 
+        """
+        vectorizer=tc.vectorizer.PolynomialVectorizer(label_names, 2)
+        print(vectorizer.label_names)
+        print(len(vectorizer.label_names))
+        print(labels_tr.shape[1])
+        if isinstance(labels_tr, np.ndarray):
+            print("aaaaa")
+        if labels_tr.shape[0] == flux_tr.shape[0]:
+            print("bbbbbbb")
+        if labels_tr.shape[1] == len(vectorizer.label_names):
+            print("wheeeeeeee")
+        else:
+            print("booo")
+        quit()
+        """
         # Construct a CannonModel object using a quadratic (O=2) polynomial vectorizer. No wait, linear should be much faster. But it was bad.
         model = tc.CannonModel(
             labels_tr, flux_tr, ivar_tr, dispersion=wl, # needed to set dispersion explicitly
@@ -87,7 +111,7 @@ def loocv(df, wl, fluxes, ivars, label_names=["Teff", "logg", "feh", "mg_h", "Ag
         theta, s2, metadata = model.train(threads=1)
 
         # inspect coefficients
-        print(theta.shape)
+        #print(theta.shape)
         #print(len(theta[:,0]))
         """
         fig, axes = plt.subplots(len(label_names)+1)
@@ -153,7 +177,7 @@ def loocv(df, wl, fluxes, ivars, label_names=["Teff", "logg", "feh", "mg_h", "Ag
         #numax_pred = test_labels[:,5]
         #Dnu_pred = test_labels[:,6]
 
-    return test_labels_arr, true_labels_arr
+    return test_labels_arr, true_labels_arr, model
 
 
 def create_filenames_from_ids(ids, prefix, suffix):
