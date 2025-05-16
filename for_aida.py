@@ -19,12 +19,14 @@ import loocv
 
 path = '/Users/chrislam/Desktop/cannon-ages/' 
 
+"""
 df = pd.read_csv(path+'data/small.csv',index_col=False)
 df = df[df.Teff.notnull()]
 df = df[df.mg_h.notnull()]
 df = df[df.Age.notnull()]
 df = df.reset_index(drop=True)
 #df = df.loc[df['sdss_id_sec'] == 114879184]
+"""
 
 df = pd.read_csv(path+'data/enriched.csv', sep=',')
 df['sdss_id'] = df['sdss_id'].astype(int)
@@ -32,6 +34,10 @@ df['sdss_id'] = df['sdss_id'].astype(int)
 df = df[df.Teff.notnull()]
 df = df[df.mg_h.notnull()]
 df = df[df.Age.notnull()]
+df = df[df.feh.notnull()]
+df = df[df.logg.notnull()]
+df = df[df.Dnu.notnull()]
+df = df[df.numax.notnull()]
 df = df.reset_index(drop=True)
 
 training_names = df['sdss_id'].astype(str)

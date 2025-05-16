@@ -26,6 +26,9 @@ def loocv(df, wl, fluxes, ivars, label_names=["Teff", "logg", "feh", "mg_h", "Ag
     # Specify the labels that we will use to construct this model.
     #label_names = ["Teff", "logg", "feh"]
     
+    fluxes = np.array(fluxes)
+    ivars = np.array(ivars)
+    
     test_labels_arr = []
     true_labels_arr = []
     s2_arr = []
@@ -38,14 +41,16 @@ def loocv(df, wl, fluxes, ivars, label_names=["Teff", "logg", "feh", "mg_h", "Ag
 
         # training set
         try:
-            flux_tr = np.concatenate((fluxes[:i], fluxes[i+1:]))
+            #flux_tr = np.concatenate((fluxes[:i+1], fluxes[i+1:]))
+            flux_tr = np.delete(fluxes,i,axis=0) 
         except:
             flux_tr = fluxes[:-1]
         try:
-            ivar_tr = np.concatenate((ivars[:i], ivars[i+1:]))
+            #ivar_tr = np.concatenate((ivars[:i+1], ivars[i+1:]))
+            ivar_tr = np.delete(ivars,i,axis=0) 
         except:
             ivar_tr = ivars[:-1]
-        
+
         flux_tr = np.array(flux_tr)
         ivar_tr = np.array(ivar_tr)
 
@@ -102,6 +107,9 @@ def loocv(df, wl, fluxes, ivars, label_names=["Teff", "logg", "feh", "mg_h", "Ag
             print("booo")
         quit()
         """
+        print(flux_tr.shape)
+        print(ivar_tr.shape)
+        print(labels_tr.shape)
         # Construct a CannonModel object using a quadratic (O=2) polynomial vectorizer. No wait, linear should be much faster. But it was bad.
         model = tc.CannonModel(
             labels_tr, flux_tr, ivar_tr, dispersion=wl, # needed to set dispersion explicitly
