@@ -7,14 +7,18 @@ import numpy as np
 from astropy.io import fits
 from astropy.table import Table
 from tqdm import tqdm
-import sdss_access
 import matplotlib.pyplot as plt
 from sdss_access import Access
+import process_spectra_gaus
+import os
 access = Access(release='ipl-3', verbose=False)
 access.remote()
 
+import get_spectra
+
 path = '/home/c.lam/blue/cannon-ages/'
-#path = '/Users/chrislam/Desktop/cannon-ages/' 
+path = '/Users/chrislam/Desktop/cannon-ages/' 
+folder = 'spectra'
 
 # Serenelli+17 stars
 apokasc_sdss = pd.read_csv(path+'data/apokasc-sdss-teff.txt', sep='\s+')
@@ -36,6 +40,18 @@ lite_source_ids = hdul_lite[1].data.gaia_dr3_source_id
 # build intersection sdss_id list, to grab updated labels from astraMWMLite
 apokasc_sdss_bedell_df = apokasc_sdss_bedell_df.loc[apokasc_sdss_bedell_df['source_id'].isin(lite_source_ids)]
 source_ids = apokasc_sdss_bedell_df['source_id']
+
+# if we already have the spectra, skip these
+#training_names = apokasc_sdss_bedell_df['sdss_id'].astype(str)
+#spectra_paths = process_spectra_gaus.get_files_in_order(path+'data/'+folder,training_names)
+# Loop through each file in the directory
+start_string = 'mwmStar-0.6.0-'
+end_string = '.fits'
+sdss_id_dones = []
+for filename in os.listdir(path+'data/'+folder):
+    sdss_id_done = process_spectra_gaus.get_number_between(filename, start_string, end_string)
+    sdss_id_dones.append(sdss_id_done)
+
 sdss_ids = []
 teffs = []
 loggs = []
@@ -47,6 +63,11 @@ for source_id in tqdm(source_ids):
     logg = hdul_lite[1].data[hdul_lite[1].data.gaia_dr3_source_id==source_id].logg[0]
     fe_h = hdul_lite[1].data[hdul_lite[1].data.gaia_dr3_source_id==source_id].fe_h[0]
     mg_h = hdul_lite[1].data[hdul_lite[1].data.gaia_dr3_source_id==source_id].mg_h[0]
+
+    if np.isin(sdss_id, np.array(sdss_id_dones)):
+        pass
+    else:
+        get_spectra.get_spectra(sdss_id, path, folder)
 
     sdss_ids.append(sdss_id)
     teffs.append(teff)

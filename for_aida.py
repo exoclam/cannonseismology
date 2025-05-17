@@ -28,7 +28,7 @@ df = df.reset_index(drop=True)
 #df = df.loc[df['sdss_id_sec'] == 114879184]
 """
 
-df = pd.read_csv(path+'data/enriched.csv', sep=',')
+df = pd.read_csv(path+'data/enriched_lite.csv', sep=',')
 df['sdss_id'] = df['sdss_id'].astype(int)
 #df = df.iloc[:100]
 df = df[df.Teff.notnull()]
@@ -39,10 +39,13 @@ df = df[df.logg.notnull()]
 df = df[df.Dnu.notnull()]
 df = df[df.numax.notnull()]
 df = df.reset_index(drop=True)
+print(df)
 
 training_names = df['sdss_id'].astype(str)
 directory = path+'data/spectra/' # e.g., mwmStar-0.6.0-114879184.fits
 spectra_paths = get_files_in_order(directory, training_names)
+print(len(spectra_paths))
+quit()
 
 flux_tr=[]
 ivar_tr=[]
