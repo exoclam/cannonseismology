@@ -247,7 +247,6 @@ def process_spectra_chisq(file_path,L):
     return wl,norm_flux,ivar
 
 
-
 def get_files_in_order(directory,search_strings):
     # Initialize an empty list to store the matched files
     matched_files = []

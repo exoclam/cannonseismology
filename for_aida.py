@@ -45,7 +45,6 @@ training_names = df['sdss_id'].astype(str)
 directory = path+'data/spectra/' # e.g., mwmStar-0.6.0-114879184.fits
 spectra_paths = get_files_in_order(directory, training_names)
 print(len(spectra_paths))
-quit()
 
 flux_tr=[]
 ivar_tr=[]
@@ -82,12 +81,12 @@ for path in paths:
 #Age = df['Age'].values
 #Dnu = df['Dnu'].values
 #label_tr = np.vstack((Teff,logg,fe_h,mg_h,Age,Dnu)).T
-label_names = ['Teff', 'logg', 'feh', 'mg_h', 'Age', 'Dnu','numax']
+label_names = ['Teff', 'logg', 'feh', 'mg_h', 'Age', 'Dnu'] # 'numax'
 #preds = loocv.loocv(df, wl, flux_tr, ivar_tr, label_names)
 
 test_labels_arr, true_labels_arr, model = loocv.loocv(df, wl, flux_tr, ivar_tr, label_names)
 
-model.write(path+"apogee-serenelli.model") # write out model
+model.write(path+"apogee-serenelli-lite.model") # write out model
 # new_model = tc.CannonModel.read("apogee-dr14-giants.model") # read in model
 
 preds = pd.DataFrame()
@@ -101,7 +100,7 @@ preds['fe_h_pred'] = np.array(test_labels_arr)[:,0][:,2]
 preds['mg_h_pred'] = np.array(test_labels_arr)[:,0][:,3]
 preds['Age_pred'] = np.array(test_labels_arr)[:,0][:,4]
 preds['Dnu_pred'] = np.array(test_labels_arr)[:,0][:,5]
-preds['numax_pred'] = np.array(test_labels_arr)[:,0][:,6]
+#preds['numax_pred'] = np.array(test_labels_arr)[:,0][:,6]
 
 preds['Teff_test'] = np.array(true_labels_arr)[:,0][:,0]
 preds['logg_test'] = np.array(true_labels_arr)[:,0][:,1]
@@ -109,9 +108,9 @@ preds['fe_h_test'] = np.array(true_labels_arr)[:,0][:,2]
 preds['mg_h_test'] = np.array(true_labels_arr)[:,0][:,3]
 preds['Age_test'] = np.array(true_labels_arr)[:,0][:,4]
 preds['Dnu_test'] = np.array(true_labels_arr)[:,0][:,5]
-preds['numax_test'] = np.array(true_labels_arr)[:,0][:,6]
+#preds['numax_test'] = np.array(true_labels_arr)[:,0][:,6]
 print(preds)
-preds.to_csv(path+'data/preds_dnu_numax_full.csv', index=False)
+preds.to_csv(path+'data/preds_dnu_full.csv', index=False)
 
 plt.scatter(preds['Teff_pred'], preds['Teff_test'])
 plt.plot(preds['Teff_test'], preds['Teff_test'])
@@ -120,7 +119,7 @@ plt.ylabel(r"$T_{\rm eff}$ [K], test")
 plt.xlim([4750, 6750])
 plt.ylim([4750, 6750])
 #plt.legend()
-plt.savefig(path+'plots/teff_check_dnu_numax_full.png')
+plt.savefig(path+'plots/teff_check_dnu_full.png')
 plt.show()
 
 plt.scatter(preds['logg_pred'], preds['logg_test'])
@@ -129,7 +128,7 @@ plt.xlabel(r"logg, pred")
 plt.ylabel(r"logg, test")
 plt.xlim([3.3, 4.4])
 plt.ylim([3.3, 4.4])
-plt.savefig(path+'plots/logg_check_dnu_numax_full.png')
+plt.savefig(path+'plots/logg_check_dnu_full.png')
 plt.show()
 
 plt.scatter(preds['fe_h_pred'], preds['fe_h_test'])
@@ -138,7 +137,7 @@ plt.xlabel(r"[Fe/H], pred")
 plt.ylabel(r"[Fe/H], test")
 plt.xlim([-0.6, 0.5])
 plt.ylim([-0.6, 0.5])
-plt.savefig(path+'plots/feh_check_dnu_numax_full.png')
+plt.savefig(path+'plots/feh_check_dnu_full.png')
 plt.show()
 
 plt.scatter(preds['mg_h_pred'], preds['mg_h_test'])
@@ -147,7 +146,7 @@ plt.xlabel(r"[Mg/H], pred")
 plt.ylabel(r"[Mg/H], test")
 plt.xlim([-0.6, 0.5])
 plt.ylim([-0.6, 0.5])
-plt.savefig(path+'plots/mg_h_check_dnu_numax_full.png')
+plt.savefig(path+'plots/mg_h_check_dnu_full.png')
 plt.show()
 
 plt.scatter(preds['Age_pred'], preds['Age_test'])
@@ -156,7 +155,7 @@ plt.xlabel(r"age [Gyr], pred")
 plt.ylabel(r"age [Gyr], test")
 plt.xlim([0, 14])
 plt.ylim([0, 14])
-plt.savefig(path+'plots/age_check_dnu_numax_full.png')
+plt.savefig(path+'plots/age_check_dnu_full.png')
 plt.show()
 
 plt.scatter(preds['Dnu_pred'], preds['Dnu_test'])
@@ -165,9 +164,10 @@ plt.xlabel(r'$\Delta \nu [\mu Hz]$, pred')
 plt.ylabel(r'$\Delta \nu [\mu Hz]$, test')
 plt.xlim([0, 160])
 plt.ylim([0, 160])
-plt.savefig(path+'plots/Dnu_check_dnu_numax_full.png')
+plt.savefig(path+'plots/Dnu_check_dnu_full.png')
 plt.show()
 
+"""
 plt.scatter(preds['numax_pred'], preds['numax_test'])
 plt.plot(preds['numax_test'], preds['numax_test'])
 plt.xlabel(r'$\nu_{max} [\mu Hz]$, pred')
@@ -176,3 +176,4 @@ plt.xlim([300, 3600])
 plt.ylim([300, 3600])
 plt.savefig(path+'plots/numax_check_dnu_numax_full.png')
 plt.show()
+"""
