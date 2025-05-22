@@ -18,6 +18,7 @@ from process_spectra_gaus import *
 import loocv
 
 path = '/Users/chrislam/Desktop/cannon-ages/' 
+path = '/home/c.lam/blue/cannon-ages/'
 
 """
 df = pd.read_csv(path+'data/small.csv',index_col=False)
@@ -38,8 +39,42 @@ df = df[df.feh.notnull()]
 df = df[df.logg.notnull()]
 df = df[df.Dnu.notnull()]
 df = df[df.numax.notnull()]
+
+df = df.loc[df.Age >= 0] # get rid of -99 Gyr ages (error flag from APOKASC)
 df = df.reset_index(drop=True)
 print(df)
+
+"""
+plt.hist(df.Teff)
+plt.xlabel(r"$T_{\rm eff}$ [K]")
+plt.savefig(path+'plots/teff.png')
+plt.show()
+
+plt.hist(df.logg)
+plt.xlabel("logg")
+plt.savefig(path+'plots/logg.png')
+plt.show()
+
+plt.hist(df.feh)
+plt.xlabel("[Fe/H]")
+plt.savefig(path+'plots/feh.png')
+plt.show()
+
+plt.hist(df.mg_h)
+plt.xlabel("[Mg/H]")
+plt.savefig(path+'plots/mgh.png')
+plt.show()
+
+plt.hist(df.Age)
+plt.xlabel("Age [Gyr]")
+plt.savefig(path+'plots/age.png')
+plt.show()
+
+plt.hist(df.Dnu)
+plt.xlabel(r'$\Delta \nu [\mu Hz]$')
+plt.savefig(path+'plots/Dnu.png')
+plt.show()
+"""
 
 training_names = df['sdss_id'].astype(str)
 directory = path+'data/spectra/' # e.g., mwmStar-0.6.0-114879184.fits
@@ -84,13 +119,15 @@ for path in paths:
 label_names = ['Teff', 'logg', 'feh', 'mg_h', 'Age', 'Dnu'] # 'numax'
 #preds = loocv.loocv(df, wl, flux_tr, ivar_tr, label_names)
 
-test_labels_arr, true_labels_arr, model = loocv.loocv(df, wl, flux_tr, ivar_tr, label_names)
+test_labels_arr, true_labels_arr, model, s2_arr = loocv.loocv(df, wl, flux_tr, ivar_tr, label_names)
+s2_arr = np.array(s2_arr)
 
 model.write(path+"apogee-serenelli-lite.model") # write out model
 # new_model = tc.CannonModel.read("apogee-dr14-giants.model") # read in model
 
 preds = pd.DataFrame()
 preds['sdss_id'] = df['sdss_id']
+preds['s2'] = s2_arr
 #preds['sdss_id'] = df['sdss_id'][:temp_length]
 #print(np.array(s2_arr))
 

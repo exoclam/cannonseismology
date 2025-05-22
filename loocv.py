@@ -20,7 +20,10 @@ def loocv(df, wl, fluxes, ivars, label_names=["Teff", "logg", "feh", "mg_h", "Ag
     - ivars: inverse variances
 
     Output: 
-    - out: output DataFrame, which has original labels and predicted ones, too
+    - test_labels_arr: literally one row of a label
+    - true_labels_arr: corresponding APOKASC/Gaia label
+    - model: The Cannon model object
+    - s2_arr: s_lambda (Ness+15 Eqn 4) squared array
     """
 
     # Specify the labels that we will use to construct this model.
@@ -28,7 +31,7 @@ def loocv(df, wl, fluxes, ivars, label_names=["Teff", "logg", "feh", "mg_h", "Ag
     
     fluxes = np.array(fluxes)
     ivars = np.array(ivars)
-    
+
     test_labels_arr = []
     true_labels_arr = []
     s2_arr = []
@@ -117,6 +120,7 @@ def loocv(df, wl, fluxes, ivars, label_names=["Teff", "logg", "feh", "mg_h", "Ag
 
         # training step
         theta, s2, metadata = model.train(threads=1)
+        s2_arr.append(s2)
 
         # inspect coefficients
         #print(theta.shape)
@@ -185,7 +189,7 @@ def loocv(df, wl, fluxes, ivars, label_names=["Teff", "logg", "feh", "mg_h", "Ag
         #numax_pred = test_labels[:,5]
         #Dnu_pred = test_labels[:,6]
 
-    return test_labels_arr, true_labels_arr, model
+    return test_labels_arr, true_labels_arr, model, s2_arr
 
 
 def create_filenames_from_ids(ids, prefix, suffix):
