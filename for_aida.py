@@ -44,6 +44,12 @@ df = df.loc[df.Age >= 0] # get rid of -99 Gyr ages (error flag from APOKASC)
 df = df.reset_index(drop=True)
 print(df)
 
+#print(np.min(df.Teff), np.max(df.Teff))
+#print(np.min(df.logg), np.max(df.logg))
+#print(np.min(df.feh), np.max(df.feh))
+#print(np.min(df.mg_h), np.max(df.mg_h))
+#print(np.min(df.Age), np.max(df.Age))
+#print(np.min(df.Dnu), np.max(df.Dnu))
 """
 plt.hist(df.Teff)
 plt.xlabel(r"$T_{\rm eff}$ [K]")
@@ -121,13 +127,16 @@ label_names = ['Teff', 'logg', 'feh', 'mg_h', 'Age', 'Dnu'] # 'numax'
 
 test_labels_arr, true_labels_arr, model, s2_arr = loocv.loocv(df, wl, flux_tr, ivar_tr, label_names)
 s2_arr = np.array(s2_arr)
+print("s2: ", s2_arr)
+print(np.nanmean(s2_arr))
+print(np.nanstd(s2_arr))
 
 model.write(path+"apogee-serenelli-lite.model") # write out model
 # new_model = tc.CannonModel.read("apogee-dr14-giants.model") # read in model
 
 preds = pd.DataFrame()
 preds['sdss_id'] = df['sdss_id']
-preds['s2'] = s2_arr
+#preds['s2'] = s2_arr
 #preds['sdss_id'] = df['sdss_id'][:temp_length]
 #print(np.array(s2_arr))
 
@@ -148,6 +157,9 @@ preds['Dnu_test'] = np.array(true_labels_arr)[:,0][:,5]
 #preds['numax_test'] = np.array(true_labels_arr)[:,0][:,6]
 print(preds)
 preds.to_csv(path+'data/preds_dnu_full.csv', index=False)
+
+np.savetxt(path+'data/s2_lite.txt', s2_arr, fmt='%d', delimiter=',', newline='\n')
+quit()
 
 plt.scatter(preds['Teff_pred'], preds['Teff_test'])
 plt.plot(preds['Teff_test'], preds['Teff_test'])

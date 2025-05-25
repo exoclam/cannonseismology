@@ -2,12 +2,15 @@
 Get KIC field star APOGEE spectra
 """
 
+import os
+import numpy as np
 import pandas as pd
 from astropy.io import fits
 from astropy.table import Table
 from tqdm import tqdm
 import sdss_access
 import matplotlib.pyplot as plt
+import process_spectra_gaus
 from sdss_access import Access
 access = Access(release='ipl-3', verbose=False)
 access.remote()
@@ -26,8 +29,8 @@ def build_inference_set_labels():
     Returns:
         _type_: _description_
     """
-    #path = '/home/c.lam/blue/cannon-ages/'
-    path = '/Users/chrislam/Desktop/cannon-ages/' 
+    path = '/home/c.lam/blue/cannon-ages/'
+    #path = '/Users/chrislam/Desktop/cannon-ages/' 
 
     fits_image_filename_lite = path+'data/astraMWMLite-0.6.0.fits'
     hdul_lite = fits.open(fits_image_filename_lite)  
@@ -41,20 +44,35 @@ def build_inference_set_labels():
     bedell_kic_apogee = bedell_df.loc[bedell_df['source_id'].isin(lite_source_ids)]
     source_ids = bedell_kic_apogee['source_id']
     sdss_ids = []
+    mg_hs = []
     for source_id in tqdm(source_ids):
         sdss_id = hdul_lite[1].data[hdul_lite[1].data.gaia_dr3_source_id==source_id].sdss_id[0]
         sdss_ids.append(sdss_id)
+
+        mg_h = hdul_lite[1].data[hdul_lite[1].data.gaia_dr3_source_id==source_id].mg_h[0]
+        mg_hs.append(mg_h)
     bedell_kic_apogee['sdss_id'] = sdss_ids
+    bedell_kic_apogee['mg_h'] = mg_hs
+    print(bedell_kic_apogee)
+
+    # cull based on label space of Serenelli+17 training set
+    bedell_kic_apogee = bedell_kic_apogee.loc[(bedell_kic_apogee['teff'] <= 6540) & (bedell_kic_apogee['teff'] >= 4740)]
+    bedell_kic_apogee = bedell_kic_apogee.loc[(bedell_kic_apogee['logg'] <= 4.5) & (bedell_kic_apogee['logg'] >= 3.2)]
+    bedell_kic_apogee = bedell_kic_apogee.loc[(bedell_kic_apogee['feh'] <= 0.5) & (bedell_kic_apogee['feh'] >= -0.75)]
+    bedell_kic_apogee = bedell_kic_apogee.loc[(bedell_kic_apogee['mg_h'] <= 0.45) & (bedell_kic_apogee['mg_h'] >= -0.70)]
     print(bedell_kic_apogee)
     bedell_kic_apogee.to_csv(path+'data/bedell_kic_apogee.csv',index=False)
     
     return bedell_kic_apogee
 
 
-def build_inference_set_spectra(df):
+def build_inference_set_spectra(df, sdss_id_dones):
 
     sdss_ids = df['sdss_id']
-
+    print(len(sdss_ids))
+    sdss_ids = sdss_ids[~np.isin(np.array(sdss_ids), sdss_id_dones)]
+    print(len(sdss_ids))
+    
     for sdss_id in tqdm(sdss_ids):
         try:
             access.add('mwmStar', v_astra='0.6.0', component='', sdss_id=sdss_id)
@@ -62,17 +80,18 @@ def build_inference_set_spectra(df):
             access.commit()
             
             mwmStar_filename = access.full('mwmStar', v_astra='0.6.0', component='', sdss_id=sdss_id)
+            print("SDSS ID: ", sdss_id, mwmStar_filename)
 
             # read to fits, bc actually it'll be easier to handle columns of lists this way
             mwmStar = fits.open(mwmStar_filename)
             try:
                 mwmStar.writeto(path+'data/kic_spectra/mwmStar-0.6.0-'+str(sdss_id)+'.fits', overwrite=False)
-            except:
-                print("already have it!")
+            except Exception as e:
+                print("problem with writing: ", e)
                 pass
 
         except Exception as e:
-            print(e)
+            print("problem with accessing: ", e)
             pass
 
     return
@@ -89,11 +108,20 @@ def get_spectra(sdss_id, path, folder):
     mwmStar = fits.open(mwmStar_filename)
     try:
         mwmStar.writeto(path+'data/'+folder+'/mwmStar-0.6.0-'+str(sdss_id)+'.fits', overwrite=False)
-    except:
-        print("already have it!")
+    except Exception as e:
+        print(e)
         pass
 
 #bedell_kic_apogee = build_inference_set_labels() # I did this in HPG already, and rsynced the product back to local
 df = pd.read_csv(path+'data/bedell_kic_apogee.csv')
 print(list(df.columns))
-build_inference_set_spectra(df)
+
+# build no-query list
+start_string = 'mwmStar-0.6.0-'
+end_string = '.fits'
+sdss_id_dones = []
+for filename in os.listdir(path+'data/kic_spectra/'):
+    sdss_id_done = process_spectra_gaus.get_number_between(filename, start_string, end_string)
+    sdss_id_dones.append(sdss_id_done)
+
+build_inference_set_spectra(df, sdss_id_dones)

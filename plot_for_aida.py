@@ -24,7 +24,7 @@ print(preds)
 
 def compute_rms_scatter(label1, label2):
 
-    """Compute rms scatter
+    """Compute LOOCV rms scatter
 
     Input:
     - label1: predicted label
@@ -43,18 +43,19 @@ def compute_rms_scatter(label1, label2):
     return rms, errors, fractional_errors
 
 rms_age, errors_age, fractional_errors_age = compute_rms_scatter(preds['Age_pred'], preds['Age_test'])
-print(rms_age, errors_age, fractional_errors_age)
+print("age: ", rms_age, errors_age, fractional_errors_age)
 rms_teff, errors_teff, fractional_errors_teff = compute_rms_scatter(preds['Teff_pred'], preds['Teff_test'])
-print(rms_teff)
+print("teff: ", rms_teff)
 rms_logg, _, _ = compute_rms_scatter(preds['logg_pred'], preds['logg_test'])
-print(rms_logg)
+print("logg: ", rms_logg)
 rms_feh, _, _ = compute_rms_scatter(preds['fe_h_pred'], preds['fe_h_test'])
-print(rms_feh)
+print("feH: ", rms_feh)
 rms_mgh, _, _ = compute_rms_scatter(preds['mg_h_pred'], preds['mg_h_test'])
-print(rms_mgh)
+print("mg_h: ", rms_mgh)
 rms_dnu, _, _ = compute_rms_scatter(preds['Dnu_pred'], preds['Dnu_test'])
-print(rms_dnu)
+print("Dnu: ", rms_dnu)
 
+"""
 plt.plot(preds['Age_pred'], fractional_errors_age)
 plt.xlabel('Cannon age [Gyr]')
 plt.ylabel('fractional age error')
@@ -64,6 +65,7 @@ plt.plot(preds['Teff_pred'], fractional_errors_teff)
 plt.xlabel(r'Cannon Teff [K]')
 plt.ylabel('fractional Teff error')
 plt.show()
+"""
 
 def plot_heatmaps(label1, label2):
     """Plot 2D histogram of Cannon vs APOKASC/Gaia stellar param
@@ -96,17 +98,18 @@ plt.xlabel('APOKASC age [Gyr]')
 plt.ylabel('Cannon age [Gyr]')
 #plt.legend(bbox_to_anchor=(1., 1.05))
 plt.tight_layout()
-#plt.savefig(path+'plots/trilegal/kepmag_vs_cdpp.png', format='png', bbox_inches='tight')
+plt.savefig(path+'plots/training_age_heatmap.png', format='png', bbox_inches='tight')
 plt.show()
 
 plt.scatter(preds['Age_pred'], preds['Age_test'])
 plt.plot(preds['Age_test'], preds['Age_test'])
 plt.xlabel(r"age [Gyr], pred")
 plt.ylabel(r"age [Gyr], test")
-#plt.xlim([0, 14])
-#plt.ylim([0, 14])
+plt.xlim([0, 14])
+plt.ylim([0, 14])
+plt.savefig(path+'plots/age_check_dnu_full.png')
 plt.show()
-quit()
+#quit()
 
 plt.scatter(preds['Teff_pred'], preds['Teff_test'])
 plt.plot(preds['Teff_test'], preds['Teff_test'])
