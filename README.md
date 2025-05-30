@@ -10,3 +10,5 @@ Train The Cannon on stars with asteroseismic ages to infer more precise ages for
 - get_spectra.py: functions for building inference set and then querying inference spectra from this APOGEE-KIC crossmatch
 - build_training_set.py: streamlined, barebones script to do the main job of cannon-ages.ipynb w/o all the checks and plots
 - train_serenelli.py: small test script for troubleshooting LOOCV and model training on a smaller subset of stars
+- comparisons.py: compare predicted Cannon ages with gyrochronology, isochrone, etc ages for those same stars
+- uncertainties.py: calculate per-star errorbars

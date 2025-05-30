@@ -7,6 +7,7 @@ import os
 import shutil
 
 path = '/Users/chrislam/Desktop/cannon-ages/' 
+path = '/home/c.lam/blue/cannon-ages/'
 
 def loocv(df, wl, fluxes, ivars, label_names=["Teff", "logg", "feh", "mg_h", "Age", "Dnu", "numax"]):
     """
@@ -173,10 +174,19 @@ def loocv(df, wl, fluxes, ivars, label_names=["Teff", "logg", "feh", "mg_h", "Ag
         plt.savefig(path+'plots/theta_small.png')
         plt.show()
         """
+
         # test step
         test_labels, cov_val, metadata_val = model.test(flux_test, ivar_test)
         #print(test_labels, cov_val, metadata_val)
         test_labels_arr.append(test_labels)
+
+        # use cov to propagate per-star, per-visit uncertainty 
+        matrix = np.zeros((len(cov_val),len(label_names))) # Pre-allocate matrix
+        for i in range(0,len(cov_val)):
+            matrix[i,:] = np.sqrt(np.diag(cov_val[i]))
+
+        df_sigma = pd.DataFrame(matrix)
+        df_sigma.to_csv(path+'data/test_output_sigmaA.csv',index=False)
 
         # get Cannon-derived model spectra
         model_spectra = model(test_labels) ## this errors out? 

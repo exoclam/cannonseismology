@@ -17,7 +17,7 @@ from process_spectra_gaus import *
 
 import loocv
 
-path = '/Users/chrislam/Desktop/cannon-ages/' 
+#path = '/Users/chrislam/Desktop/cannon-ages/' 
 path = '/home/c.lam/blue/cannon-ages/'
 
 """
@@ -29,7 +29,7 @@ df = df.reset_index(drop=True)
 #df = df.loc[df['sdss_id_sec'] == 114879184]
 """
 
-df = pd.read_csv(path+'data/enriched_lite.csv', sep=',')
+df = pd.read_csv(path+'data/enriched_lite_visits.csv', sep=',')
 df['sdss_id'] = df['sdss_id'].astype(int)
 #df = df.iloc[:100]
 df = df[df.Teff.notnull()]

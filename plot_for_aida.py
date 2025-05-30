@@ -42,6 +42,10 @@ def compute_rms_scatter(label1, label2):
 
     return rms, errors, fractional_errors
 
+# keep only young, alpha-rich stars
+preds = preds.loc[(preds['Age_test'] <= 6) & (preds['fe_h_test'] >= 0.2)]
+
+
 rms_age, errors_age, fractional_errors_age = compute_rms_scatter(preds['Age_pred'], preds['Age_test'])
 print("age: ", rms_age, errors_age, fractional_errors_age)
 rms_teff, errors_teff, fractional_errors_teff = compute_rms_scatter(preds['Teff_pred'], preds['Teff_test'])
@@ -93,13 +97,13 @@ def plot_heatmaps(label1, label2):
 
     return ax
 
-ax_age = plot_heatmaps(preds['Age_test'], preds['Age_pred'])
-plt.xlabel('APOKASC age [Gyr]')
-plt.ylabel('Cannon age [Gyr]')
+#ax_age = plot_heatmaps(preds['Age_test'], preds['Age_pred'])
+#plt.xlabel('APOKASC age [Gyr]')
+#plt.ylabel('Cannon age [Gyr]')
 #plt.legend(bbox_to_anchor=(1., 1.05))
-plt.tight_layout()
-plt.savefig(path+'plots/training_age_heatmap.png', format='png', bbox_inches='tight')
-plt.show()
+#plt.tight_layout()
+#plt.savefig(path+'plots/training_age_heatmap.png', format='png', bbox_inches='tight')
+#plt.show()
 
 plt.scatter(preds['Age_pred'], preds['Age_test'])
 plt.plot(preds['Age_test'], preds['Age_test'])
@@ -107,7 +111,7 @@ plt.xlabel(r"age [Gyr], pred")
 plt.ylabel(r"age [Gyr], test")
 plt.xlim([0, 14])
 plt.ylim([0, 14])
-plt.savefig(path+'plots/age_check_dnu_full.png')
+plt.savefig(path+'plots/age_check_dnu_young_alpha_rich.png') # _full
 plt.show()
 #quit()
 
@@ -118,7 +122,8 @@ plt.ylabel(r"$T_{\rm eff}$ [K], test")
 plt.xlim([4500, 6750])
 plt.ylim([4500, 6750])
 #plt.legend()
-plt.savefig(path+'plots/teff_check_dnu_full.png')
+#plt.savefig(path+'plots/teff_check_dnu_full.png')
+plt.savefig(path+'plots/teff_check_dnu_young_alpha_rich.png')
 plt.show()
 
 plt.scatter(preds['logg_pred'], preds['logg_test'])
@@ -127,7 +132,8 @@ plt.xlabel(r"logg, pred")
 plt.ylabel(r"logg, test")
 plt.xlim([3.1, 4.4])
 plt.ylim([3.1, 4.4])
-plt.savefig(path+'plots/logg_check_dnu_full.png')
+#plt.savefig(path+'plots/logg_check_dnu_full.png')
+plt.savefig(path+'plots/logg_check_dnu_young_alpha_rich.png')
 plt.show()
 
 plt.scatter(preds['fe_h_pred'], preds['fe_h_test'])
@@ -136,7 +142,8 @@ plt.xlabel(r"[Fe/H], pred")
 plt.ylabel(r"[Fe/H], test")
 plt.xlim([-0.7, 0.7])
 plt.ylim([-0.7, 0.7])
-plt.savefig(path+'plots/feh_check_dnu_full.png')
+#plt.savefig(path+'plots/feh_check_dnu_full.png')
+plt.savefig(path+'plots/feh_check_dnu_young_alpha_rich.png')
 plt.show()
 
 plt.scatter(preds['mg_h_pred'], preds['mg_h_test'])
@@ -145,7 +152,8 @@ plt.xlabel(r"[Mg/H], pred")
 plt.ylabel(r"[Mg/H], test")
 plt.xlim([-0.6, 0.5])
 plt.ylim([-0.6, 0.5])
-plt.savefig(path+'plots/mg_h_check_dnu_full.png')
+#plt.savefig(path+'plots/mg_h_check_dnu_full.png')
+plt.savefig(path+'plots/mg_h_check_dnu_young_alpha_rich.png')
 plt.show()
 
 plt.scatter(preds['Age_pred'], preds['Age_test'])
@@ -154,7 +162,8 @@ plt.xlabel(r"age [Gyr], pred")
 plt.ylabel(r"age [Gyr], test")
 plt.xlim([0, 14])
 plt.ylim([0, 14])
-plt.savefig(path+'plots/age_check_dnu_full.png')
+#plt.savefig(path+'plots/age_check_dnu_full.png')
+plt.savefig(path+'plots/age_check_dnu_young_alpha_rich.png')
 plt.show()
 
 plt.scatter(preds['Dnu_pred'], preds['Dnu_test'])
@@ -163,7 +172,8 @@ plt.xlabel(r'$\Delta \nu [\mu Hz]$, pred')
 plt.ylabel(r'$\Delta \nu [\mu Hz]$, test')
 plt.xlim([0, 160])
 plt.ylim([0, 160])
-plt.savefig(path+'plots/Dnu_check_dnu_full.png')
+#plt.savefig(path+'plots/Dnu_check_dnu_full.png')
+plt.savefig(path+'plots/Dnu_check_dnu_young_alpha_rich.png')
 plt.show()
 
 """

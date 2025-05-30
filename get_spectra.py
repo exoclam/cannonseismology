@@ -74,7 +74,10 @@ def build_inference_set_spectra(df, sdss_id_dones):
     print(len(sdss_ids))
     
     for sdss_id in tqdm(sdss_ids):
+        print("sdss_id: ", sdss_id)
         try:
+            access = Access(release='ipl-3', verbose=False)
+            access.remote()
             access.add('mwmStar', v_astra='0.6.0', component='', sdss_id=sdss_id)
             access.set_stream()
             access.commit()
