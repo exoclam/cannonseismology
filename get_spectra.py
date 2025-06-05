@@ -15,8 +15,8 @@ from sdss_access import Access
 access = Access(release='ipl-3', verbose=False)
 access.remote()
 
-path = '/home/c.lam/blue/cannon-ages/'
-#path = '/Users/chrislam/Desktop/cannon-ages/' 
+#path = '/home/c.lam/blue/cannon-ages/'
+path = '/Users/chrislam/Desktop/cannon-ages/' 
 
 def build_inference_set_labels():
 
@@ -100,25 +100,34 @@ def build_inference_set_spectra(df, sdss_id_dones):
     return
 
 
-def get_spectra(sdss_id, path, folder):
-    access.add('mwmStar', v_astra='0.6.0', component='', sdss_id=sdss_id)
+def get_spectra(sdss_id, path, folder, visit_flag=False):
+
+    # do I get the squashed version or the visit-by-visit version?
+    if visit_flag==False:
+        visit_or_star = 'Star'
+    elif visit_flag==True:
+        visit_or_star = 'Visit'
+
+    access.add('mwm'+visit_or_star, v_astra='0.6.0', component='', sdss_id=sdss_id)
     access.set_stream()
     access.commit()
     
-    mwmStar_filename = access.full('mwmStar', v_astra='0.6.0', component='', sdss_id=sdss_id)
+    mwm_filename = access.full('mwm'+visit_or_star, v_astra='0.6.0', component='', sdss_id=sdss_id)
 
     # read to fits, bc actually it'll be easier to handle columns of lists this way
-    mwmStar = fits.open(mwmStar_filename)
+    mwm = fits.open(mwm_filename)
     try:
-        mwmStar.writeto(path+'data/'+folder+'/mwmStar-0.6.0-'+str(sdss_id)+'.fits', overwrite=False)
+        mwm.writeto(path+'data/'+folder+'/mwm'+visit_or_star+'-0.6.0-'+str(sdss_id)+'.fits', overwrite=False)
     except Exception as e:
         print(e)
         pass
 
 #bedell_kic_apogee = build_inference_set_labels() # I did this in HPG already, and rsynced the product back to local
 df = pd.read_csv(path+'data/bedell_kic_apogee.csv')
-print(list(df.columns))
+#print(list(df.columns))
 
+"""
+### query inference set spectra (KIC-APOGEE)
 # build no-query list
 start_string = 'mwmStar-0.6.0-'
 end_string = '.fits'
@@ -128,3 +137,10 @@ for filename in os.listdir(path+'data/kic_spectra/'):
     sdss_id_dones.append(sdss_id_done)
 
 build_inference_set_spectra(df, sdss_id_dones)
+"""
+
+### for a star with 2 spectra, look for 500 such stars where n_apogee_visits==2, snr<=600, snr>=200, spec_chisq<100000
+enriched_lite_visits = pd.read_csv(path+'data/enriched_lite_visits.csv')
+print(list(enriched_lite_visits.columns))
+twos = enriched_lite_visits.loc[enriched_lite_visits['n_apogee_visits']==2]
+print(twos) # 147 stars

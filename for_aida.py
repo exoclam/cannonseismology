@@ -16,9 +16,20 @@ print(tc.__version__)
 from process_spectra_gaus import *
 
 import loocv
+import matplotlib
+import matplotlib.pylab as pylab
+matplotlib.rcParams.update({'errorbar.capsize': 1})
+pylab_params = {'legend.fontsize': 'large',
+         'axes.labelsize': 'x-large',
+         'axes.titlesize':'x-large',
+         'xtick.labelsize':'large',
+         'ytick.labelsize':'large'}
+pylab.rcParams.update(pylab_params)
 
-#path = '/Users/chrislam/Desktop/cannon-ages/' 
-path = '/home/c.lam/blue/cannon-ages/'
+
+path = '/Users/chrislam/Desktop/cannon-ages/' 
+#path = '/home/c.lam/blue/cannon-ages/'
+
 
 """
 df = pd.read_csv(path+'data/small.csv',index_col=False)
@@ -51,35 +62,37 @@ print(df)
 #print(np.min(df.Age), np.max(df.Age))
 #print(np.min(df.Dnu), np.max(df.Dnu))
 """
-plt.hist(df.Teff)
+color='black'
+plt.hist(df.Teff, color=color)
 plt.xlabel(r"$T_{\rm eff}$ [K]")
 plt.savefig(path+'plots/teff.png')
 plt.show()
 
-plt.hist(df.logg)
-plt.xlabel("logg")
+plt.hist(df.logg, color=color)
+plt.xlabel("log(g)")
 plt.savefig(path+'plots/logg.png')
 plt.show()
 
-plt.hist(df.feh)
+plt.hist(df.feh, color=color)
 plt.xlabel("[Fe/H]")
 plt.savefig(path+'plots/feh.png')
 plt.show()
 
-plt.hist(df.mg_h)
+plt.hist(df.mg_h, color=color)
 plt.xlabel("[Mg/H]")
 plt.savefig(path+'plots/mgh.png')
 plt.show()
 
-plt.hist(df.Age)
+plt.hist(df.Age, color=color)
 plt.xlabel("Age [Gyr]")
 plt.savefig(path+'plots/age.png')
 plt.show()
 
-plt.hist(df.Dnu)
+plt.hist(df.Dnu, color=color)
 plt.xlabel(r'$\Delta \nu [\mu Hz]$')
 plt.savefig(path+'plots/Dnu.png')
 plt.show()
+quit()
 """
 
 training_names = df['sdss_id'].astype(str)
@@ -127,11 +140,11 @@ label_names = ['Teff', 'logg', 'feh', 'mg_h', 'Age', 'Dnu'] # 'numax'
 
 test_labels_arr, true_labels_arr, model, s2_arr = loocv.loocv(df, wl, flux_tr, ivar_tr, label_names)
 s2_arr = np.array(s2_arr)
-print("s2: ", s2_arr)
+print("s2: ", s2_arr, s2_arr.shape)
 print(np.nanmean(s2_arr))
 print(np.nanstd(s2_arr))
 
-model.write(path+"apogee-serenelli-lite.model") # write out model
+#model.write(path+"apogee-serenelli-lite.model") # write out model
 # new_model = tc.CannonModel.read("apogee-dr14-giants.model") # read in model
 
 preds = pd.DataFrame()
