@@ -221,6 +221,13 @@ def process_spectra_chisq(file_path,L):
     # read in file
     hdu_list = fits.open(file_path)
 
+    if hdu_list[2].data:
+        flux = np.array(hdu_list[2].data['flux'][0])
+        wl = np.array(hdu_list[2].data['wavelength'][0])
+        ivar = np.array(hdu_list[2].data['ivar'][0])
+        continuum = np.array(hdu_list[2].data['continuum'][0])
+        flags = np.array(hdu_list[2].data['pixel_flags'][0])
+
     if hdu_list[3].data:
         flux = np.array(hdu_list[3].data['flux'][0])
         wl = np.array(hdu_list[3].data['wavelength'][0])

@@ -4,32 +4,123 @@ Compare predicted ages with gyrochronology (Lu+24, Bouma+24), co-moving group, k
 
 import pandas as pd
 import numpy as np
+from astropy.io import fits
+from astropy.table import Table
 import matplotlib.pyplot as plt
+#from plot_for_aida import plot_heatmaps
+
+import matplotlib
+import matplotlib.pylab as pylab
+matplotlib.rcParams.update({'errorbar.capsize': 1})
+pylab_params = {'legend.fontsize': 'large',
+         'axes.labelsize': 'x-large',
+         'axes.titlesize':'x-large',
+         'xtick.labelsize':'large',
+         'ytick.labelsize':'large'}
+pylab.rcParams.update(pylab_params)
 
 path = '/Users/chrislam/Desktop/cannon-ages/' 
 
+def plot_heatmaps(label1, label2, color='Blues'):
+    """Plot 2D histogram of Cannon vs APOKASC/Gaia stellar param
+
+    Args:
+        label1 (_type_): "older truth" label
+        label2 (_type_): Cannon-predicted label
+
+    Returns:
+        ax: plt colormesh object
+    """
+
+    norm = 10
+    bins2d = [np.linspace(np.nanmin(label1), np.nanmax(label1), 20), np.linspace(np.nanmin(label2), np.nanmax(label2), 20)]
+
+    hist, xedges, yedges = np.histogram2d(label1, label2, bins=bins2d)
+    hist = hist.T
+    #with np.errstate(divide='ignore', invalid='ignore'):  # suppress division by zero warnings
+        #hist *= norm / hist.sum(axis=0, keepdims=True)
+        #hist *= norm / hist.sum(axis=1, keepdims=True)
+    ax = plt.pcolormesh(xedges, yedges, hist, cmap=color)
+
+    #ax.set_xlim([xedges[0], xedges[-1]])
+    #ax.set_ylim([yedges[0], yedges[-1]])
+
+    return ax
+
+### training set
 preds = pd.read_csv(path+'data/preds_dnu_full.csv')
 
 # add KIC column to preds DF
-df = pd.read_csv(path+'data/enriched_lite.csv', sep=',')
+df = pd.read_csv(path+'data/enriched_lite_visits.csv', sep=',')
 kics = df.loc[df['sdss_id'].isin(preds['sdss_id'])]['KIC']
 source_ids = df.loc[df['sdss_id'].isin(preds['sdss_id'])]['source_id']
+source_id_dr2s = df.loc[df['sdss_id'].isin(preds['sdss_id'])]['source_id_dr2']
 
 preds['KIC'] = kics
 preds['source_id'] = source_ids
+preds['source_id_dr2'] = source_id_dr2s
 preds = preds.dropna(subset=['KIC', 'source_id'])
 preds['KIC'] = preds['KIC'].astype(int)
 preds['source_id'] = preds['source_id'].astype(int)
-print(preds)
+preds['source_id_dr2'] = preds['source_id_dr2'].astype(int)
 
-"""
-# open clusters
-clusters = pd.read_csv(path+'data/long23-kepler-gaia-open-clusters.txt', sep='\s+')
-print(clusters)
-clusters_training = pd.merge(preds, clusters, left_on='source_id', right_on='Gaia')
-print(clusters_training)
+### inference set
+inferences_df = pd.read_csv(path+'data/inferences_kic.csv', sep=',')
+inferences_df['KIC'] = inferences_df['kepid']
+
+### combine both age prediction sets for comparison 
+preds['kepid'] = preds['KIC']
+columns = ['KIC','kepid','source_id','source_id_dr2','sdss_id','Teff_pred','logg_pred','fe_h_pred','mg_h_pred','Age_pred','Dnu_pred']
+preds = pd.concat([preds[columns],inferences_df[columns]])
+print("preds: ", preds)
+
+### Cantat-Gaudin+18,20 and Kounkel+20, referenced in Bouma+24 as cluster membership references
+cantat_gaudin2020 = pd.read_csv(path+'data/cantat-gaudin2020.txt', sep='[\\s|]+')
+cantat_gaudin2018 = pd.read_csv(path+'data/cantat-gaudin2018.txt', sep='[\\s|]+')
+kounkel_table1 = pd.read_csv(path+'data/kounkel_table1.txt',sep='[\\s|]+')
+kounkel_tablea1 = pd.read_csv(path+'data/kounkel_tablea1.txt',sep='|')
+kounkel_table1['Group'] = kounkel_table1['Group'].astype(str)
+kounkel_tablea1['Group'] = kounkel_tablea1['Group'].astype(str)
+kounkel2020 = pd.merge(kounkel_table1, kounkel_tablea1, on='Group', how='left')
+
+preds_cantat_gaudin2020 = pd.merge(preds, cantat_gaudin2020, left_on='source_id_dr2', right_on='GaiaDR2', how='left').dropna(subset=['Cluster'])
+preds_cantat_gaudin2018 = pd.merge(preds, cantat_gaudin2018, left_on='source_id_dr2', right_on='Source', how='left').dropna(subset=['Cluster'])
+preds_kounkel2020 = pd.merge(preds, kounkel2020, left_on='source_id_dr2', right_on='Gaia', how='left').dropna(subset=['Cluster'])
+print("KOUNKEL PREDS: ", preds_kounkel2020)
+print(preds_cantat_gaudin2020['Cluster'])
+print(preds_cantat_gaudin2018['Cluster'])
+print(preds_kounkel2020['Cluster'])
 quit()
-"""
+
+### enrich these with Gaia DR2 source_id
+hdul_dr2 = fits.open(path+'data/kepler_dr2_1arcsec.fits')
+gaia_kepler_dr2 = Table(hdul_dr2[1].data).to_pandas()
+hdul_dr2.close()
+gaia_kepler_dr2['source_id_dr2'] = gaia_kepler_dr2['source_id'].astype(str)
+gaia_kepler_dr2 = gaia_kepler_dr2[['source_id_dr2', 'kepid']]
+preds2 = pd.merge(preds, gaia_kepler_dr2, on='kepid', how='left')
+preds2 = preds2.dropna(subset=['kepid','source_id','source_id_dr2'])
+print(preds2)
+
+#"""
+# open clusters
+ngc6811 = pd.read_csv(path+'data/ngc6811.csv', sep=',') 
+ngc6811_cannon = pd.merge(ngc6811, preds, on='source_id')
+ngc6819 = pd.read_csv(path+'data/ngc6819.csv', sep=',') 
+ngc6819_cannon = pd.merge(ngc6819, preds, on='source_id')
+print(ngc6811_cannon)
+print(ngc6819_cannon)
+quit()
+plt.scatter(1*np.ones(len(ngc6811_cannon)), ngc6811_cannon['Age_pred']/1., label='NGC 6811')
+plt.scatter(2.5*np.ones(len(ngc6819_cannon)), ngc6819_cannon['Age_pred']/2.5, label='NGC 6819')
+plt.ylabel('Star Age/Cluster Age')
+plt.xlabel('Cluster Age [Gyr]')
+plt.legend()
+plt.tight_layout()
+#plt.savefig(path+'plots/cluster_comparison.png')
+plt.show()
+quit()
+#"""
 
 #"""
 # read in gyrochronological ages 
@@ -86,6 +177,22 @@ plt.legend()
 plt.savefig(path+'plots/gyro_age_compare_by_feh.png')
 plt.show()
 
+ax_age = plot_heatmaps(bouma_cannon['fe_h_pred'], residual_bouma, color='Oranges')
+plt.xlabel("Fe/H")
+plt.ylabel(r"|Cannon age - Bouma gyro age| [Gyr]")
+plt.legend(bbox_to_anchor=(1., 1.05))
+plt.tight_layout()
+plt.savefig(path+'plots/gyro_age_compare_by_feh_heatmap_bouma.png', format='png', bbox_inches='tight')
+plt.show()
+
+ax_age = plot_heatmaps(lu_cannon['fe_h_pred'], residual_lu)
+plt.xlabel("Fe/H")
+plt.ylabel(r"|Cannon age - Lu gyro age| [Gyr]")
+plt.legend(bbox_to_anchor=(1., 1.05))
+plt.tight_layout()
+plt.savefig(path+'plots/gyro_age_compare_by_feh_heatmap_lu.png', format='png', bbox_inches='tight')
+plt.show()
+
 plt.errorbar(bouma_cannon['Teff_pred'], residual_bouma, yerr=yerr_bouma/1000, linestyle='', marker='o', color='pink', label='Bouma+24')
 plt.errorbar(lu_cannon['Teff_pred'], residual_lu, yerr=yerr_lu, linestyle='', marker='o', color='steelblue', label='Lu+24')
 plt.xlabel("Teff [K]")
@@ -94,6 +201,22 @@ plt.ylabel(r"|Cannon age - gyro age| [Gyr]")
 #plt.ylim([0, 14])
 plt.legend()
 plt.savefig(path+'plots/gyro_age_compare_by_teff.png')
+plt.show()
+
+ax_age = plot_heatmaps(bouma_cannon['Teff_pred'], residual_bouma, color='Oranges')
+plt.xlabel("Teff [K]")
+plt.ylabel(r"|Cannon age - Bouma gyro age| [Gyr]")
+plt.legend(bbox_to_anchor=(1., 1.05))
+plt.tight_layout()
+plt.savefig(path+'plots/gyro_age_compare_by_teff_heatmap_bouma.png', format='png', bbox_inches='tight')
+plt.show()
+
+ax_age = plot_heatmaps(lu_cannon['Teff_pred'], residual_lu)
+plt.xlabel("Teff [K]")
+plt.ylabel(r"|Cannon age - Lu gyro age| [Gyr]")
+plt.legend(bbox_to_anchor=(1., 1.05))
+plt.tight_layout()
+plt.savefig(path+'plots/gyro_age_compare_by_teff_heatmap_lu.png', format='png', bbox_inches='tight')
 plt.show()
 
 plt.errorbar(bouma_cannon['logg_pred'], residual_bouma, yerr=yerr_bouma/1000, linestyle='', marker='o', color='pink', label='Bouma+24')
@@ -105,8 +228,35 @@ plt.ylabel(r"|Cannon age - gyro age| [Gyr]")
 plt.legend()
 plt.savefig(path+'plots/gyro_age_compare_by_logg.png')
 plt.show()
-quit()
-#"""
+
+ax_age = plot_heatmaps(bouma_cannon['logg_pred'], residual_bouma, color='Oranges')
+plt.xlabel("logg")
+plt.ylabel(r"|Cannon age - Bouma gyro age| [Gyr]")
+plt.legend(bbox_to_anchor=(1., 1.05))
+plt.tight_layout()
+plt.savefig(path+'plots/gyro_age_compare_by_logg_heatmap_bouma.png', format='png', bbox_inches='tight')
+plt.show()
+
+ax_age = plot_heatmaps(lu_cannon['logg_pred'], residual_lu)
+plt.xlabel("logg")
+plt.ylabel(r"|Cannon age - Lu gyro age| [Gyr]")
+plt.legend(bbox_to_anchor=(1., 1.05))
+plt.tight_layout()
+plt.savefig(path+'plots/gyro_age_compare_by_logg_heatmap_lu.png', format='png', bbox_inches='tight')
+plt.show()
+
+preds_young = preds.loc[preds['Age_pred']<= 4]
+lu_young = lu.loc[lu['Age'] <= 4]
+#print(bouma.loc[bouma['tGyro']/1000 < 0.4]['tGyro']/1000)
+plt.hist(preds_young['Age_pred'], bins=20, fill=False, density=True, edgecolor='black', lw=1.5, label='this work')
+plt.hist(bouma['tGyro']/1000, bins=20, fill=False, density=True, edgecolor='pink', lw=1.5, label='Bouma+24')
+plt.hist(lu_young['Age'], bins=20, fill=False, density=True, edgecolor='steelblue', lw=1.5, label='Lu+24')
+plt.xlabel('Age [Gyr]')
+#plt.xlim([0,4])
+plt.legend()
+plt.tight_layout()
+plt.savefig(path+'plots/age_inference_kic_young.png')
+plt.show()
 
 # read in Berger+20 isochrone ages 
 berger = pd.read_csv(path+'data/GKSPCPapTable2_cleaned.txt', sep='&', header=0)
@@ -116,6 +266,7 @@ print(berger_cannon)
 
 yerr_berger = np.array([berger_cannon['iso_age_err1'], -1*berger_cannon['iso_age_err2']])
 
+"""
 plt.plot(np.arange(0, 14), np.arange(0, 14), color='k', alpha=0.5)
 plt.errorbar(berger_cannon['Age_pred'], berger_cannon['iso_age'], yerr=yerr_berger, label='Berger+20', linestyle='', marker='o', color='steelblue', alpha=0.4)
 plt.xlabel(r"age [Gyr], Cannon")
@@ -126,7 +277,6 @@ plt.legend()
 plt.savefig(path+'plots/isochrone_age_compare.png')
 plt.show()
 
-
 plt.plot(np.arange(0, 14), np.arange(0, 14), color='k', alpha=0.5)
 plt.errorbar(berger_cannon['Age_pred'], berger_cannon['iso_age'], yerr=yerr_berger, label='Berger+20', linestyle='', marker='o', color='steelblue', alpha=0.4)
 plt.xlabel(r"age [Gyr], Cannon")
@@ -136,3 +286,14 @@ plt.ylabel(r"age [Gyr], comparison")
 plt.legend()
 #plt.savefig(path+'plots/isochrone_age_compare.png')
 plt.show()
+"""
+
+plt.hist(preds['Age_pred'], bins=20, fill=False, density=True, edgecolor='black', lw=1.5, label='this work')
+plt.hist(berger['iso_age'], bins=20, fill=False, density=True, edgecolor="#EB72DF", lw=1.5, label='Berger+20')
+plt.xlabel('Age [Gyr]')
+plt.legend()
+plt.tight_layout()
+plt.savefig(path+'plots/age_inference_kic.png')
+plt.show()
+quit()
+#"""

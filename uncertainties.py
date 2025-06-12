@@ -3,11 +3,13 @@ import matplotlib.pyplot as plt
 import pandas as pd
 from astropy.io import fits
 from tqdm import tqdm
+from process_spectra_gaus import *
+from get_spectra import get_spectra
 
 import thecannon as tc
 
-path = '/Users/chrislam/Desktop/cannon-ages/' 
-#path = '/home/c.lam/blue/cannon-ages/'
+#path = '/Users/chrislam/Desktop/cannon-ages/' 
+path = '/home/c.lam/blue/cannon-ages/'
 
 df = pd.read_csv(path+'data/enriched_lite.csv', sep=',')
 df['sdss_id'] = df['sdss_id'].astype(int)
@@ -32,9 +34,12 @@ hdul_lite = fits.open(fits_image_filename_lite)
 
 lite_source_ids = hdul_lite[1].data.gaia_dr3_source_id
 
+inference_kic = pd.read_csv(path+'data/inferences_kic.csv')
+
 """
 ### look back in astraMWMLite to get number of APOGEE visits per star
 n_visits = []
+source_id_dr2s = []
 teffs = []
 e_teffs = []
 loggs = []
@@ -46,6 +51,7 @@ e_mg_hs = []
 for source_id in tqdm(df['source_id']):
     try:
         n_visit = hdul_lite[1].data[hdul_lite[1].data.gaia_dr3_source_id==source_id].n_apogee_visits[0]
+        source_id_dr2 = hdul_lite[1].data[hdul_lite[1].data.gaia_dr3_source_id==source_id].gaia_dr2_source_id[0]
         teff = hdul_lite[1].data[hdul_lite[1].data.gaia_dr3_source_id==source_id].teff[0]
         e_teff = hdul_lite[1].data[hdul_lite[1].data.gaia_dr3_source_id==source_id].e_teff[0]
         logg = hdul_lite[1].data[hdul_lite[1].data.gaia_dr3_source_id==source_id].logg[0]
@@ -57,6 +63,7 @@ for source_id in tqdm(df['source_id']):
 
     except Exception as e:
         n_visit = np.nan
+        source_id_dr2 = np.nan
         teff = np.nan
         e_teff = np.nan
         logg = np.nan
@@ -68,6 +75,7 @@ for source_id in tqdm(df['source_id']):
         print(e)
 
     n_visits.append(n_visit)
+    source_id_dr2s.append(source_id_dr2)
     teffs.append(teff)
     e_teffs.append(e_teff)
     loggs.append(logg)
@@ -78,6 +86,7 @@ for source_id in tqdm(df['source_id']):
     e_mg_hs.append(e_mg_h)
 
 df['n_apogee_visits'] = n_visits
+df['source_id_dr2'] = source_id_dr2s
 df['teff'] = teffs
 df['e_teff'] = e_teffs
 df['logg'] = loggs
@@ -93,12 +102,39 @@ quit()
 
 ### for a star with 2 spectra, look for 500 such stars where n_apogee_visits==2, snr<=600, snr>=200, spec_chisq<100000
 # read in trained model
-model = tc.CannonModel.read(path+"apogee-dr14-giants.model")
+model = tc.CannonModel.read(path+"apogee-serenelli-lite.model")
 count_target = 0
-for source_id in lite_source_ids:
+spec_fit_chisq_arr = []
+# ivar specifically for chisq calculation
+ivar_chisq=[]
+for source_id in inference_kic['source_id']:
     if count_target <= 500:
         n_visit = hdul_lite[1].data[hdul_lite[1].data.gaia_dr3_source_id==source_id].n_apogee_visits[0]
         snr = hdul_lite[1].data[hdul_lite[1].data.gaia_dr3_source_id==source_id].snr[0]
+
+        if (n_visit==2) and (snr <= 600) and (snr >= 200):
+            continue
+
+        sdss_id = hdul_lite[1].data[hdul_lite[1].data.gaia_dr3_source_id==source_id].sdss_id[0]
+
+        sdss_path = get_spectra(sdss_id, path, 'chisq_spectra', visit_flag=False)
+        print(sdss_path)
+        
+        wl,norm_flux_single_chisq,ivar_single_chisq = process_spectra_chisq(sdss_path,10)
+        ivar_chisq.append(ivar_single_chisq)
+
+        # apply trained model to this random inference set star's spectrum
+        test_labels, cov_val, metadata_val = model.test(norm_flux_single_chisq, ivar_single_chisq)
+
+        # get Cannon-derived model spectra
+        model_spectrum = model(test_labels)
+
+        # chisq of model spectral fit
+        spec_fit_chisq = np.sum(((model_spectrum-norm_flux_single_chisq)**2)/(ivar_single_chisq**-1 + s2))
+        spec_fit_chisq_arr.append(spec_fit_chisq)
+        print(spec_fit_chisq)
+        quit()
+
 
         test_labels, cov_val, metadata_val = model.test(test_flux, test_ivar)
         # get Cannon-derived model spectra
@@ -108,8 +144,7 @@ for source_id in lite_source_ids:
         spec_fit_chisq = np.sum(((model_spectrum-test_flux)**2)/(test_ivar_chisq**-1 + s2))
         spec_fit_chisq_arr.append(spec_fit_chisq)
         
-        if (n_visit==2) and (snr <= 600) and (snr >= 200):
-            pass
+        
 
 
         count_target += 1

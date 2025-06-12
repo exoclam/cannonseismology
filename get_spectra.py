@@ -117,10 +117,14 @@ def get_spectra(sdss_id, path, folder, visit_flag=False):
     # read to fits, bc actually it'll be easier to handle columns of lists this way
     mwm = fits.open(mwm_filename)
     try:
-        mwm.writeto(path+'data/'+folder+'/mwm'+visit_or_star+'-0.6.0-'+str(sdss_id)+'.fits', overwrite=False)
+        mwm.writeto(path+'data/'+folder+'/mwm'+visit_or_star+'-0.6.0-'+str(sdss_id)+'.fits', overwrite=True)
+        return path+'data/'+folder+'/mwm'+visit_or_star+'-0.6.0-'+str(sdss_id)+'.fits'
+    
     except Exception as e:
         print(e)
         pass
+
+    
 
 #bedell_kic_apogee = build_inference_set_labels() # I did this in HPG already, and rsynced the product back to local
 df = pd.read_csv(path+'data/bedell_kic_apogee.csv')

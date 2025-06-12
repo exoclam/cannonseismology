@@ -36,6 +36,7 @@ label_names=["Teff", "logg", "feh", "mg_h", "Age", "Dnu"]
 
 fits_image_filename_lite = path+'data/astraMWMLite-0.6.0.fits'
 hdul_lite = fits.open(fits_image_filename_lite)  
+source_id_dr2s = []
 fluxes=[]
 ivars=[]
 success_sdss_ids=[]
@@ -65,6 +66,7 @@ for spectra_path in spectra_paths: # toggle for short or full version
 	e_fe_h = hdul_lite[1].data[hdul_lite[1].data.sdss_id==sdss_id].e_fe_h[0]
 	mg_h = hdul_lite[1].data[hdul_lite[1].data.sdss_id==sdss_id].mg_h[0]
 	e_mg_h = hdul_lite[1].data[hdul_lite[1].data.sdss_id==sdss_id].e_mg_h[0]
+	source_id_dr2 = hdul_lite[1].data[hdul_lite[1].data.sdss_id==sdss_id].gaia_dr2_source_id[0]
 	teffs.append(teff)
 	e_teffs.append(e_teff)
 	loggs.append(logg)
@@ -73,7 +75,7 @@ for spectra_path in spectra_paths: # toggle for short or full version
 	e_fe_hs.append(e_fe_h)
 	mg_hs.append(mg_h)
 	e_mg_hs.append(e_mg_h)
-
+	source_id_dr2s.append(source_id_dr2)
 
 # read in model 
 model = tc.CannonModel.read(path+"apogee-serenelli-lite.model")
@@ -121,6 +123,7 @@ preds['fe_h'] = fe_hs
 preds['e_fe_h'] = e_fe_hs
 preds['mg_h_aspcap'] = mg_hs
 preds['e_mg_h'] = e_mg_hs
+preds['source_id_dr2'] = source_id_dr2s
 
 preds['Teff_pred'] = np.array(labels_arr)[:,0][:,0]
 preds['logg_pred'] = np.array(labels_arr)[:,0][:,1]

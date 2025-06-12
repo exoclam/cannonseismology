@@ -33,6 +33,32 @@ pylab.rcParams.update(pylab_params)
 preds = pd.read_csv(path+'data/preds_dnu_full.csv')
 print(preds)
 
+def plot_heatmaps(label1, label2):
+    """Plot 2D histogram of Cannon vs APOKASC/Gaia stellar param
+
+    Args:
+        label1 (_type_): "older truth" label
+        label2 (_type_): Cannon-predicted label
+
+    Returns:
+        ax: plt colormesh object
+    """
+
+    norm = 10
+    bins2d = [np.linspace(np.nanmin(label1), np.nanmax(label1), 20), np.linspace(np.nanmin(label2), np.nanmax(label2), 20)]
+
+    hist, xedges, yedges = np.histogram2d(label1, label2, bins=bins2d)
+    hist = hist.T
+    #with np.errstate(divide='ignore', invalid='ignore'):  # suppress division by zero warnings
+        #hist *= norm / hist.sum(axis=0, keepdims=True)
+        #hist *= norm / hist.sum(axis=1, keepdims=True)
+    ax = plt.pcolormesh(xedges, yedges, hist, cmap='Blues')
+
+    #ax.set_xlim([xedges[0], xedges[-1]])
+    #ax.set_ylim([yedges[0], yedges[-1]])
+
+    return ax
+
 def compute_rms_scatter(label1, label2):
 
     """Compute LOOCV rms scatter
@@ -60,7 +86,7 @@ print(inferences_kic)
 
 enriched_lite_visits = pd.read_csv(path+'data/enriched_lite_visits.csv')
 print(enriched_lite_visits)
-quit()
+
 color='black'
 plt.errorbar(inferences_kic['Teff_pred'], inferences_kic['teff'], yerr=[inferences_kic['teff_err1'], -1*inferences_kic['teff_err2']], 
              color=color, marker='o', linestyle='', alpha=0.4)
@@ -166,32 +192,6 @@ plt.xlabel(r'Cannon Teff [K]')
 plt.ylabel('fractional Teff error')
 plt.show()
 """
-
-def plot_heatmaps(label1, label2):
-    """Plot 2D histogram of Cannon vs APOKASC/Gaia stellar param
-
-    Args:
-        label1 (_type_): "older truth" label
-        label2 (_type_): Cannon-predicted label
-
-    Returns:
-        ax: plt colormesh object
-    """
-
-    norm = 10
-    bins2d = [np.linspace(np.nanmin(label1), np.nanmax(label1), 20), np.linspace(np.nanmin(label2), np.nanmax(label2), 20)]
-
-    hist, xedges, yedges = np.histogram2d(label1, label2, bins=bins2d)
-    hist = hist.T
-    #with np.errstate(divide='ignore', invalid='ignore'):  # suppress division by zero warnings
-        #hist *= norm / hist.sum(axis=0, keepdims=True)
-        #hist *= norm / hist.sum(axis=1, keepdims=True)
-    ax = plt.pcolormesh(xedges, yedges, hist, cmap='Blues')
-
-    #ax.set_xlim([xedges[0], xedges[-1]])
-    #ax.set_ylim([yedges[0], yedges[-1]])
-
-    return ax
 
 #ax_age = plot_heatmaps(preds['Age_test'], preds['Age_pred'])
 #plt.xlabel('APOKASC age [Gyr]')
