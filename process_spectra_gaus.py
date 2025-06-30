@@ -21,6 +21,9 @@ from scipy import interpolate
 import thecannon as tc
 from thecannon import continuum
 
+from sdss_access import Access
+access = Access(release='ipl-3', verbose=False)
+access.remote()
 
 
 def _get_pixmask(flux,flux_errs):
@@ -209,7 +212,7 @@ def process_spectra(file_path,L):
 
 
 
-def process_spectra_chisq(file_path,L):
+def process_spectra_chisq(file_path,L,visit_flag=False):
     """Combine all functions to process spectra specifically for chisq calculation
     Args:
         file_path (string): path to SDSS spectrum .fits file
@@ -219,29 +222,42 @@ def process_spectra_chisq(file_path,L):
     """ 
 
     # read in file
+    print(file_path)
     hdu_list = fits.open(file_path)
 
+    """
     if hdu_list[2].data:
         flux = np.array(hdu_list[2].data['flux'][0])
         wl = np.array(hdu_list[2].data['wavelength'][0])
         ivar = np.array(hdu_list[2].data['ivar'][0])
         continuum = np.array(hdu_list[2].data['continuum'][0])
         flags = np.array(hdu_list[2].data['pixel_flags'][0])
-
-    if hdu_list[3].data:
-        flux = np.array(hdu_list[3].data['flux'][0])
+    """
+    #if hdu_list[3].data:
+    flux = np.array(hdu_list[3].data['flux'][0])
+    ivar = np.array(hdu_list[3].data['ivar'][0])
+    continuum = np.array(hdu_list[3].data['continuum'][0])
+    flags = np.array(hdu_list[3].data['pixel_flags'][0])
+    if visit_flag==False:
         wl = np.array(hdu_list[3].data['wavelength'][0])
-        ivar = np.array(hdu_list[3].data['ivar'][0])
-        continuum = np.array(hdu_list[3].data['continuum'][0])
-        flags = np.array(hdu_list[3].data['pixel_flags'][0])
+    elif visit_flag==True: # for some reason, the Visit files don't have wl. Grab the Star files for those. 
+        sdss_id = hdu_list[0].header['SDSS_ID']
+        access.add('mwmStar', v_astra='0.6.0', component='', sdss_id=sdss_id)
+        access.set_stream()
+        access.commit()
+        
+        mwm_filename = access.full('mwmStar', v_astra='0.6.0', component='', sdss_id=sdss_id)
+        mwmStar = fits.open(mwm_filename)
+        wl = np.array(mwmStar[3].data['wavelength'][0])
 
+    """
     if hdu_list[4].data:
         flux = np.array(hdu_list[4].data['flux'][0])
         wl = np.array(hdu_list[4].data['wavelength'][0])
         ivar = np.array(hdu_list[4].data['ivar'][0])
         continuum = np.array(hdu_list[4].data['continuum'][0])
         flags = np.array(hdu_list[4].data['pixel_flags'][0])
-
+    """
     flux_err = 1/np.sqrt(ivar)
 
     # divide spectrum by Gaussian-smoothed version of itself to remove large-scale shape
@@ -252,6 +268,30 @@ def process_spectra_chisq(file_path,L):
     norm_flux[sky_mask] = np.median(norm_flux)
 
     return wl,norm_flux,ivar
+
+def process_spectra_gaus_chris_version(flux, ivar, wl, L=10):
+    """Since we're specifically grabbing Visit spectra for targets with exactly two visits...
+    I'm doing that off-screen and then passing each Visit's flux & ivar into here. 
+
+    Args:
+        flux (_type_): Visit flux
+        ivar (_type_): Visit ivar
+        wl (_type_): Star wavelength
+        L (int, optional): Gaussian smoothing window length. Defaults to 10.
+
+    Returns:
+        norm_flux: normalized and error-corrected flux
+    """
+    flux_err = 1/np.sqrt(ivar)
+
+    # divide spectrum by Gaussian-smoothed version of itself to remove large-scale shape
+    wl,norm_flux,ivar = _gauss_norm_chisq(flux,flux_err,ivar,wl,L)
+
+    # mask out where sky subtraction failed
+    sky_mask = np.logical_or(norm_flux<0.4, norm_flux>1.2)
+    norm_flux[sky_mask] = np.median(norm_flux)
+
+    return wl, norm_flux, ivar
 
 
 def get_files_in_order(directory,search_strings):

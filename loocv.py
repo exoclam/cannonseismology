@@ -36,7 +36,7 @@ def loocv(df, wl, fluxes, ivars, label_names=["Teff", "logg", "feh", "mg_h", "Ag
     - test_labels_arr: literally one row of a label
     - true_labels_arr: corresponding APOKASC/Gaia label
     - model: The Cannon model object
-    - s2_arr: s_lambda (Ness+15 Eqn 4) squared array
+    - s2_arr: s_lambda (Ness+15 Eqn 4) s squared array
     """
 
     # Specify the labels that we will use to construct this model.

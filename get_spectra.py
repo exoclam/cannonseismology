@@ -15,8 +15,8 @@ from sdss_access import Access
 access = Access(release='ipl-3', verbose=False)
 access.remote()
 
-#path = '/home/c.lam/blue/cannon-ages/'
-path = '/Users/chrislam/Desktop/cannon-ages/' 
+path = '/home/c.lam/blue/cannon-ages/'
+#path = '/Users/chrislam/Desktop/cannon-ages/' 
 
 def build_inference_set_labels():
 
@@ -113,7 +113,8 @@ def get_spectra(sdss_id, path, folder, visit_flag=False):
     access.commit()
     
     mwm_filename = access.full('mwm'+visit_or_star, v_astra='0.6.0', component='', sdss_id=sdss_id)
-
+    print(mwm_filename)
+    
     # read to fits, bc actually it'll be easier to handle columns of lists this way
     mwm = fits.open(mwm_filename)
     try:

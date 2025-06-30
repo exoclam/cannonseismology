@@ -21,21 +21,67 @@ pylab_params = {'legend.fontsize': 'large',
          'ytick.labelsize':'large'}
 pylab.rcParams.update(pylab_params)
 
-#path = '/Users/chrislam/Desktop/cannon-ages/' 
-path = '/home/c.lam/blue/cannon-ages/'
+path = '/Users/chrislam/Desktop/cannon-ages/' 
+#path = '/home/c.lam/blue/cannon-ages/'
 
-bedell_kic_apogee = pd.read_csv(path+'data/bedell_kic_apogee.csv')
-#bedell_kic_apogee = bedell_kic_apogee.loc[bedell_kic_apogee['sdss_id'].isin(np.array([66646541,66647080,66647116,66647134,66647246,66647251]))]
-training_names = bedell_kic_apogee['sdss_id'].astype(str)
+def get_spectra(sdss_id, path, folder, visit_flag=False):
+
+    # do I get the squashed version or the visit-by-visit version?
+    if visit_flag==False:
+        visit_or_star = 'Star'
+    elif visit_flag==True:
+        visit_or_star = 'Visit'
+
+    access.add('mwm'+visit_or_star, v_astra='0.6.0', component='', sdss_id=sdss_id)
+    access.set_stream()
+    access.commit()
+    
+    mwm_filename = access.full('mwm'+visit_or_star, v_astra='0.6.0', component='', sdss_id=sdss_id)
+    print(mwm_filename)
+    
+    # read to fits, bc actually it'll be easier to handle columns of lists this way
+    mwm = fits.open(mwm_filename)
+    try:
+        mwm.writeto(path+'data/'+folder+'/mwm'+visit_or_star+'-0.6.0-'+str(sdss_id)+'.fits', overwrite=True)
+        return path+'data/'+folder+'/mwm'+visit_or_star+'-0.6.0-'+str(sdss_id)+'.fits'
+    
+    except Exception as e:
+        print(e)
+        pass
+"""
+### RUN THIS WHOLE THING ONLY ONCE
+fits_image_filename_lite = path+'data/astraMWMLite-0.6.0.fits'
+hdul_lite = fits.open(fits_image_filename_lite)  
+lite_source_ids = hdul_lite[1].data.gaia_dr3_source_id
+
+# Bedell cross-match has the Gaia DR3 source_id we need 
+bedell = Table.read(path+'data/kepler_dr3_good.fits')
+bedell_df = bedell.to_pandas()
+
+legacy = pd.read_csv(path+'data/silva-aguirre-legacy.txt',sep='\s+')
+legacy_bedell = pd.merge(legacy, bedell_df, left_on='KIC', right_on='kepid', how='left')
+
+# use DR3 source_id to get sdss_id from mwmLite
+legacy_bedell_apogee = legacy_bedell.loc[legacy_bedell['source_id'].isin(lite_source_ids)]
+
+source_ids = legacy_bedell_apogee['source_id']
+sdss_ids = []
+for source_id in tqdm(source_ids):
+	sdss_id = hdul_lite[1].data[hdul_lite[1].data.gaia_dr3_source_id==source_id].sdss_id[0]
+	sdss_ids.append(sdss_id)
+     
+	get_spectra(sdss_id, path, 'silva_aguirre_apogee_spectra', visit_flag=False)
+
+legacy_bedell_apogee['sdss_id'] = sdss_ids
+
+training_names = legacy_bedell_apogee['sdss_id'].astype(str)
 
 # use Aida's normalization code on the inference spectra
-directory = path+'data/kic_spectra/' 
+directory = path+'data/silva_aguirre_apogee_spectra/' 
 #spectra_paths = sorted(os.listdir(directory))
 spectra_paths = get_files_in_order(directory, training_names)
 label_names=["Teff", "logg", "feh", "mg_h", "Age", "Dnu"]
 
-fits_image_filename_lite = path+'data/astraMWMLite-0.6.0.fits'
-hdul_lite = fits.open(fits_image_filename_lite)  
 source_id_dr2s = []
 fluxes=[]
 ivars=[]
@@ -57,7 +103,7 @@ for spectra_path in spectra_paths: # toggle for short or full version
 	sdss_id = get_number_between(spectra_path, 'mwmStar-0.6.0-', '.fits')
 	success_sdss_ids.append(sdss_id)
      
-    # pull Gaia(?) stellar params from mwmLite
+    # pull (Gaia?) stellar params from mwmLite
 	teff = hdul_lite[1].data[hdul_lite[1].data.sdss_id==sdss_id].teff[0]
 	e_teff = hdul_lite[1].data[hdul_lite[1].data.sdss_id==sdss_id].e_teff[0]
 	logg = hdul_lite[1].data[hdul_lite[1].data.sdss_id==sdss_id].logg[0]
@@ -96,25 +142,17 @@ for i in tqdm(range(len(fluxes))):
         matrix[j,:] = np.sqrt(np.diag(cov[j]))
     cov_arr.append(matrix)
 
+print("cov: ", cov_arr)
+
 preds = pd.DataFrame()
-preds['kepid'] = bedell_kic_apogee['kepid']
-preds['source_id'] = bedell_kic_apogee['source_id']
-preds['sdss_id'] = bedell_kic_apogee['sdss_id']
-preds['teff'] = bedell_kic_apogee['teff']
-preds['teff_err1'] = bedell_kic_apogee['teff_err1']
-preds['teff_err2'] = bedell_kic_apogee['teff_err2']
-preds['logg'] = bedell_kic_apogee['logg']
-preds['logg_err1'] = bedell_kic_apogee['logg_err1']
-preds['logg_err2'] = bedell_kic_apogee['logg_err2']
-preds['feh'] = bedell_kic_apogee['feh']
-preds['feh_err1'] = bedell_kic_apogee['feh_err1']
-preds['feh_err2'] = bedell_kic_apogee['feh_err2']
-preds['mg_h'] = bedell_kic_apogee['mg_h']
+preds['kepid'] = legacy_bedell_apogee['kepid']
+preds['source_id'] = legacy_bedell_apogee['source_id']
+preds['sdss_id'] = legacy_bedell_apogee['sdss_id']
 
 # looks like sdss_access failed for six spectra. handle these.
 preds = preds.loc[preds['sdss_id'].isin(np.array(success_sdss_ids))]
 
-# these are GaiaDR3? parameters
+# mwmLite (GaiaDR3?) params
 preds['teff'] = teffs
 preds['e_teff'] = e_teffs
 preds['logg_aspcap'] = loggs
@@ -125,12 +163,27 @@ preds['mg_h_aspcap'] = mg_hs
 preds['e_mg_h'] = e_mg_hs
 preds['source_id_dr2'] = source_id_dr2s
 
-# these are our Cannon-predicted parameters
+# Cannon-predicted params
 preds['Teff_pred'] = np.array(labels_arr)[:,0][:,0]
 preds['logg_pred'] = np.array(labels_arr)[:,0][:,1]
 preds['fe_h_pred'] = np.array(labels_arr)[:,0][:,2]
 preds['mg_h_pred'] = np.array(labels_arr)[:,0][:,3]
 preds['Age_pred'] = np.array(labels_arr)[:,0][:,4]
 preds['Dnu_pred'] = np.array(labels_arr)[:,0][:,5]
+
+preds = pd.merge(preds, legacy, left_on='kepid', right_on='KIC', how='left')
 print(preds)
-preds.to_csv(path+'data/inferences_kic.csv', index=False)
+preds.to_csv(path+'data/inferences_silva_aguirre.csv', index=False)
+"""
+preds = pd.read_csv(path+'data/inferences_silva_aguirre.csv',sep=',')
+print(list(preds.columns))
+
+plt.plot(np.arange(0, 14), np.arange(0, 14), color='k', alpha=0.5)
+plt.errorbar(preds['Age_pred'], preds['Age'], yerr=[preds['sAgeP'],-1*preds['sAgeM']], linestyle='', marker='o', color="#B521B2", alpha=0.4)
+plt.xlabel(r"age [Gyr], Cannon")
+plt.ylabel(r"age [Gyr], Legacy")
+#plt.xlim([0, 14])
+#plt.ylim([0, 14])
+#plt.legend()
+plt.savefig(path+'plots/legacy_age_compare.png')
+plt.show()

@@ -4,6 +4,7 @@ Compare predicted ages with gyrochronology (Lu+24, Bouma+24), co-moving group, k
 
 import pandas as pd
 import numpy as np
+import os
 from astropy.io import fits
 from astropy.table import Table
 import matplotlib.pyplot as plt
@@ -47,8 +48,35 @@ def plot_heatmaps(label1, label2, color='Blues'):
 
     return ax
 
+def cull(preds_df, comparison_df, comparison_teff, comparison_logg, comparison_fe_h=None, comparison_mg_h=None):
+
+    comparison_df = comparison_df.loc[(comparison_teff <= np.max(preds_df['Teff_pred'])) & (comparison_teff >= np.min(preds_df['Teff_pred']))]
+    comparison_df = comparison_df.loc[(comparison_logg <= np.max(preds_df['logg_pred'])) & (comparison_logg >= np.min(preds_df['logg_pred']))]
+    
+    # not all datasets, eg. trilegal, have abundances. Treat these as optional. 
+    try:
+        comparison_df = comparison_df.loc[(comparison_fe_h <= np.max(preds_df['fe_h_pred'])) & (comparison_fe_h >= np.min(preds_df['fe_h_pred']))]
+    except Exception as e:
+        print(e)
+    try:
+        comparison_df = comparison_df.loc[(comparison_mg_h <= np.max(preds_df['mg_h_pred'])) & (comparison_mg_h >= np.min(preds_df['mg_h_pred']))]
+    except Exception as e:
+        print(e)
+
+    return comparison_df
+
+### field stars, for Teff vs logg plots
+#hdul_dr2 = fits.open(path+'data/kepler_dr2_1arcsec.fits')
+#gaia_kepler_dr2 = Table(hdul_dr2[1].data).to_pandas()
+#hdul_dr2.close()
+
 ### training set
 preds = pd.read_csv(path+'data/preds_dnu_full.csv')
+#plt.scatter(preds['Teff_test'], preds['logg_test'])
+#plt.xlabel(r"$T_{\rm eff}$ [K], ASPCAP")
+#plt.ylabel('logg')
+#plt.show()
+#quit()
 
 # add KIC column to preds DF
 df = pd.read_csv(path+'data/enriched_lite_visits.csv', sep=',')
@@ -74,6 +102,8 @@ columns = ['KIC','kepid','source_id','source_id_dr2','sdss_id','Teff_pred','logg
 preds = pd.concat([preds[columns],inferences_df[columns]])
 print("preds: ", preds)
 
+"""
+# open clusters
 ### Cantat-Gaudin+18,20 and Kounkel+20, referenced in Bouma+24 as cluster membership references
 cantat_gaudin2020 = pd.read_csv(path+'data/cantat-gaudin2020.txt', sep='[\\s|]+')
 cantat_gaudin2018 = pd.read_csv(path+'data/cantat-gaudin2018.txt', sep='[\\s|]+')
@@ -90,27 +120,24 @@ print("KOUNKEL PREDS: ", preds_kounkel2020)
 print(preds_cantat_gaudin2020['Cluster'])
 print(preds_cantat_gaudin2018['Cluster'])
 print(preds_kounkel2020['Cluster'])
-quit()
 
-### enrich these with Gaia DR2 source_id
-hdul_dr2 = fits.open(path+'data/kepler_dr2_1arcsec.fits')
-gaia_kepler_dr2 = Table(hdul_dr2[1].data).to_pandas()
-hdul_dr2.close()
-gaia_kepler_dr2['source_id_dr2'] = gaia_kepler_dr2['source_id'].astype(str)
-gaia_kepler_dr2 = gaia_kepler_dr2[['source_id_dr2', 'kepid']]
-preds2 = pd.merge(preds, gaia_kepler_dr2, on='kepid', how='left')
-preds2 = preds2.dropna(subset=['kepid','source_id','source_id_dr2'])
-print(preds2)
+### enrich these with Gaia DR2 source_id; EDIT: not needed anymore after pulling these from ASPCAP directly
+#hdul_dr2 = fits.open(path+'data/kepler_dr2_1arcsec.fits')
+#gaia_kepler_dr2 = Table(hdul_dr2[1].data).to_pandas()
+#hdul_dr2.close()
+#gaia_kepler_dr2['source_id_dr2'] = gaia_kepler_dr2['source_id'].astype(str)
+#gaia_kepler_dr2 = gaia_kepler_dr2[['source_id_dr2', 'kepid']]
+#preds2 = pd.merge(preds, gaia_kepler_dr2, on='kepid', how='left')
+#preds2 = preds2.dropna(subset=['kepid','source_id','source_id_dr2'])
+#print(preds2)
 
-#"""
-# open clusters
 ngc6811 = pd.read_csv(path+'data/ngc6811.csv', sep=',') 
 ngc6811_cannon = pd.merge(ngc6811, preds, on='source_id')
 ngc6819 = pd.read_csv(path+'data/ngc6819.csv', sep=',') 
 ngc6819_cannon = pd.merge(ngc6819, preds, on='source_id')
 print(ngc6811_cannon)
 print(ngc6819_cannon)
-quit()
+
 plt.scatter(1*np.ones(len(ngc6811_cannon)), ngc6811_cannon['Age_pred']/1., label='NGC 6811')
 plt.scatter(2.5*np.ones(len(ngc6819_cannon)), ngc6819_cannon['Age_pred']/2.5, label='NGC 6819')
 plt.ylabel('Star Age/Cluster Age')
@@ -120,12 +147,41 @@ plt.tight_layout()
 #plt.savefig(path+'plots/cluster_comparison.png')
 plt.show()
 quit()
-#"""
+"""
 
-#"""
+# when plotting Kiel diagram, params should be homogeneous...should they be ASPCAP or Gaia phot or Gaia spec? 
+fits_image_filename_lite = path+'data/astraMWMLite-0.6.0.fits'
+hdul_lite = fits.open(fits_image_filename_lite)    
+#lite = Table(hdul_lite[1].data).to_pandas()
+#hdul_lite.close()
+#print(lite.head())
+
+"""
+# run one time to get only relevant columns from million-row ASPCAP fits file
+fits_image_filename_aspcap = path+'data/astraAllStarASPCAP-0.6.0.fits'
+hdul_aspcap = fits.open(fits_image_filename_aspcap)
+
+aspcap_source_ids = hdul_aspcap[2].data.gaia_dr3_source_id
+aspcap_source_ids_dr2 = hdul_aspcap[2].data.gaia_dr2_source_id
+aspcap_sdss_ids = hdul_aspcap[2].data.sdss_id
+aspcap_teffs = hdul_aspcap[2].data.teff
+aspcap_e_teffs = hdul_aspcap[2].data.e_teff
+aspcap_loggs = hdul_aspcap[2].data.logg
+aspcap_e_loggs = hdul_aspcap[2].data.e_logg
+aspcap_fe_hs = hdul_aspcap[2].data.fe_h
+aspcap_e_fe_hs = hdul_aspcap[2].data.e_fe_h
+aspcap_mg_hs = hdul_aspcap[2].data.mg_h
+aspcap_e_mg_hs = hdul_aspcap[2].data.e_mg_h
+aspcap_df = pd.DataFrame({'source_id': aspcap_source_ids, 'aspcap_source_id_dr2': aspcap_source_ids_dr2, 'aspcap_sdss_id': aspcap_sdss_ids, 'aspcap_teff': aspcap_teffs,
+                           'aspcap_e_teff': aspcap_e_teffs, 'aspcap_logg': aspcap_loggs, 'aspcap_e_logg': aspcap_e_loggs, 'aspcap_fe_h': aspcap_fe_hs, 'aspcap_e_fe_h': aspcap_e_fe_hs,
+                           'aspcap_mg_h': aspcap_mg_hs, 'aspcap_e_mg_h': aspcap_e_mg_hs})
+aspcap_df.to_csv(path+'data/aspcap.csv', index=False)
+"""
+aspcap_df = pd.read_csv(path+'data/aspcap.csv')
+print(aspcap_df)
+
 # read in gyrochronological ages 
 bouma = pd.read_csv(path+'data/bouma_gyro_ages.txt', sep='\s+')
-
 # many of these stars are >4000 Myr old; drop these, which have no age estimate
 try:
     bouma['e_tGyro'] = bouma['e_tGyro'].astype(int)
@@ -134,8 +190,12 @@ except ValueError:
     problematic_rows = bouma[~bouma['e_tGyro'].str.isnumeric()].index
     bouma = bouma.drop(problematic_rows)
 bouma['e_tGyro'] = bouma['e_tGyro'].astype(int)
+# enrich Bouma+24 with ASPCAP stellar parameter labels
+bouma_aspcap = pd.merge(bouma, aspcap_df, left_on='Gaia', right_on='source_id', how='left')
 
 lu = pd.read_csv(path+'data/lu_gyro_ages.txt', sep='\s+')
+lu_aspcap = pd.merge(lu, aspcap_df, on='source_id', how='left')
+
 bouma_cannon = pd.merge(preds, bouma, on='KIC')
 lu_cannon = pd.merge(preds, lu, left_on='KIC', right_on='Kic')
 
@@ -154,6 +214,7 @@ yerr_lu = np.array([lu_cannon['E_Age'], -1*lu_cannon['e_Age']])
 #plt.savefig(path+'plots/gyro_lu_vs_bouma.png')
 #plt.show()
 
+"""
 plt.plot(np.arange(0, 7), np.arange(0, 7), color='k', alpha=0.5)
 plt.errorbar(bouma_cannon['Age_pred'], bouma_cannon['tGyro']/1000, yerr=yerr_bouma/1000, label='Bouma+24', linestyle='', marker='o', color='steelblue')
 plt.errorbar(lu_cannon['Age_pred'], lu_cannon['Age'], yerr=yerr_lu, label='Lu+24', linestyle='', marker='o', color='powderblue')
@@ -257,14 +318,24 @@ plt.legend()
 plt.tight_layout()
 plt.savefig(path+'plots/age_inference_kic_young.png')
 plt.show()
+"""
 
 # read in Berger+20 isochrone ages 
 berger = pd.read_csv(path+'data/GKSPCPapTable2_cleaned.txt', sep='&', header=0)
-
 berger_cannon = pd.merge(preds, berger, on='KIC')
 print(berger_cannon)
-
 yerr_berger = np.array([berger_cannon['iso_age_err1'], -1*berger_cannon['iso_age_err2']])
+
+# Bedell cross-match has the Gaia DR3 source_id we need 
+bedell = pd.read_csv(path+'data/bedell_kic_apogee.csv', sep=',')
+berger_bedell = pd.merge(berger, bedell, left_on='KIC', right_on='kepid', how='left')
+berger_aspcap = pd.merge(berger_bedell, aspcap_df, on='source_id', how='left')
+
+# read in Nataf+24 isochrone ages
+nataf = pd.read_csv(path+'data/nataf24.txt', sep='\s+')
+nataf['age'] = 10**nataf['age']/1e9
+nataf_cannon = pd.merge(preds, nataf, left_on='source_id', right_on='dr3_source_id')
+nataf_aspcap = pd.merge(nataf, aspcap_df, left_on='dr3_source_id', right_on='source_id', how='left')
 
 """
 plt.plot(np.arange(0, 14), np.arange(0, 14), color='k', alpha=0.5)
@@ -288,12 +359,74 @@ plt.legend()
 plt.show()
 """
 
-plt.hist(preds['Age_pred'], bins=20, fill=False, density=True, edgecolor='black', lw=1.5, label='this work')
-plt.hist(berger['iso_age'], bins=20, fill=False, density=True, edgecolor="#EB72DF", lw=1.5, label='Berger+20')
+def process_trilegal(trilegal_dir_str):
+    ### If I'm going to do this for several TRILEGAL models, I should functionalize this boring part
+
+    trilegal_dir = path+'data/'+trilegal_dir_str+'/'
+    trilegal_files = os.listdir(trilegal_dir)
+    trilegal = pd.concat([pd.read_csv(trilegal_dir+trilegal_file, sep='\s+') for trilegal_file in trilegal_files], ignore_index=True) 
+
+    # remove binaries
+    trilegal = trilegal.loc[trilegal['m2/m1']==0.].reset_index()
+    trilegal['logAge'] = trilegal['logAge'].astype(float)
+    trilegal['Age'] = 10**trilegal['logAge']/1e9
+    trilegal['Teff'] = 10**trilegal['logTe']
+
+    return trilegal
+
+# introduce TRILEGAL
+trilegal = process_trilegal('trilegal')
+trilegal_constant_sfr = process_trilegal('trilegal_constant_sfr')
+
+# cull comparison samples to the label space
+trilegal_cull = cull(preds, trilegal, trilegal['Teff'], trilegal['logg'], trilegal['[M/H]'])
+trilegal_constant_sfr_cull = cull(preds, trilegal_constant_sfr, trilegal_constant_sfr['Teff'], trilegal_constant_sfr['logg'], trilegal_constant_sfr['[M/H]'])
+
+print(nataf)
+nataf_aspcap_cull = cull(preds, nataf_aspcap, nataf_aspcap['aspcap_teff'], nataf_aspcap['aspcap_logg'], nataf_aspcap['aspcap_fe_h'], nataf_aspcap['aspcap_mg_h'])
+berger_aspcap_cull = cull(preds, berger_aspcap, berger_aspcap['aspcap_teff'], berger_aspcap['aspcap_logg'], berger_aspcap['aspcap_fe_h'], berger_aspcap['aspcap_mg_h'])
+lu_aspcap_cull = cull(preds, lu_aspcap, lu_aspcap['aspcap_teff'], lu_aspcap['aspcap_logg'], lu_aspcap['aspcap_fe_h'], lu_aspcap['aspcap_mg_h'])
+bouma_aspcap_cull = cull(preds, bouma_aspcap, bouma_aspcap['aspcap_teff'], bouma_aspcap['aspcap_logg'], bouma_aspcap['aspcap_fe_h'], bouma_aspcap['aspcap_mg_h'])
+print(bouma_aspcap_cull)
+print(bouma_aspcap)
+
+bins = np.linspace(1, 8, 12) #np.linspace(0, 14, 20)
+plt.hist(trilegal_cull['Age'], bins=bins, fill=True, density=True, color="#309433", edgecolor="#309433", alpha=0.5, lw=1.5, label='TRI 2-step SFR')
+#plt.hist(trilegal_constant_sfr_cull['Age'], bins=bins, fill=True, density=True, color="#EB72DF", edgecolor="#EB72DF", alpha=0.5, lw=1.5, label='TRI constant SFR')
+#plt.hist(berger_aspcap_cull['iso_age'], bins=bins, fill=False, density=True, edgecolor="#EB72DF", alpha=0.5, lw=1.5, label='Berger+20')
+#plt.hist(nataf_aspcap_cull['age'], bins=bins, fill=False, density=True, edgecolor="#729CEB", alpha=0.5, lw=1.5, label='Nataf+24')
+plt.hist(preds['Age_pred'], bins=bins, fill=True, density=True, color='black', edgecolor='black', alpha=0.7, lw=1.5, label='this work')
 plt.xlabel('Age [Gyr]')
 plt.legend()
 plt.tight_layout()
-plt.savefig(path+'plots/age_inference_kic.png')
+#plt.savefig(path+'plots/age_inference_kic.png')
+plt.savefig(path+'plots/trilegal_comparison.png')
 plt.show()
 quit()
+
+preds_young = preds.loc[preds['Age_pred']<= 4]
+lu_young = lu_aspcap_cull.loc[lu_aspcap_cull['Age'] <= 4]
+#print(bouma.loc[bouma['tGyro']/1000 < 0.4]['tGyro']/1000)
+plt.hist(preds_young['Age_pred'], bins=20, fill=False, density=True, edgecolor='black', lw=1.5, label='this work')
+plt.hist(bouma_aspcap_cull['tGyro']/1000, bins=20, fill=False, density=True, edgecolor='pink', lw=1.5, label='Bouma+24')
+plt.hist(lu_young['Age'], bins=20, fill=False, density=True, edgecolor='steelblue', lw=1.5, label='Lu+24')
+plt.xlabel('Age [Gyr]')
+#plt.xlim([0,4])
+plt.legend()
+plt.tight_layout()
+plt.savefig(path+'plots/age_inference_kic_young.png')
+plt.show()
 #"""
+
+### Kiel diagram: Teff vs logg
+plt.scatter(nataf_aspcap_cull['aspcap_teff'], nataf_aspcap_cull['aspcap_logg'], s=5, alpha=0.5, label='Nataf+24', color='pink')
+plt.scatter(berger_aspcap_cull['aspcap_teff'], berger_aspcap_cull['aspcap_logg'], s=5, alpha=0.5, label='Berger+20', color='pink', marker='s')
+plt.scatter(bouma_aspcap_cull['aspcap_teff'], bouma_aspcap_cull['aspcap_logg'], s=5, alpha=0.3, label='Bouma+24', color='purple')
+plt.scatter(lu_aspcap_cull['aspcap_teff'], lu_aspcap_cull['aspcap_logg'], s=5, alpha=0.3, label='Lu+24', color='purple', marker='s')
+preds_aspcap = pd.merge(preds, aspcap_df, on='source_id', how='left')
+plt.scatter(preds_aspcap['aspcap_teff'], preds_aspcap['aspcap_logg'], s=5, alpha=0.3, label='this training sample', color='black')
+plt.xlabel(r"$T_{\rm eff}$ [K], ASPCAP")
+plt.ylabel('logg, ASPCAP')
+plt.legend()
+plt.savefig(path+'plots/kiel.png')
+plt.show()
