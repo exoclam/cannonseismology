@@ -80,9 +80,18 @@ for spectra_path in spectra_paths: # toggle for short or full version
 # read in model 
 model = tc.CannonModel.read(path+"apogee-serenelli-lite.model")
 
+def cov_matrix(cov):
+	# model-assigned label scatter: this is for sigma_A, B, as well as errorbars at the individual star level 
+	matrix = np.zeros((len(cov),6)) # Pre-allocate matrix
+	for i in range(0,len(cov)):
+		matrix[i,:] = np.sqrt(np.diag(cov[i]))
+
+	df_sigma = pd.DataFrame(matrix)
+	return df_sigma
+
 # inference!
 labels_arr = []
-cov_arr = []
+sigma_stars = []
 for i in tqdm(range(len(fluxes))):
     flux = fluxes[i]
     ivar = ivars[i]
@@ -91,10 +100,13 @@ for i in tqdm(range(len(fluxes))):
     labels_arr.append(labels)
     
     # use cov to propagate per-star, per-visit uncertainty 
-    matrix = np.zeros((len(cov),len(label_names))) # Pre-allocate matrix
-    for j in range(0,len(cov)):
-        matrix[j,:] = np.sqrt(np.diag(cov[j]))
-    cov_arr.append(matrix)
+    #matrix = np.zeros((len(cov),len(label_names))) # Pre-allocate matrix
+    #for j in range(0,len(cov)):
+    #    matrix[j,:] = np.sqrt(np.diag(cov[j]))
+    #cov_arr.append(matrix)
+    	
+    sigma_star = np.array(cov_matrix(cov))
+    sigma_stars.append(sigma_star)
 
 preds = pd.DataFrame()
 preds['kepid'] = bedell_kic_apogee['kepid']
@@ -132,5 +144,12 @@ preds['fe_h_pred'] = np.array(labels_arr)[:,0][:,2]
 preds['mg_h_pred'] = np.array(labels_arr)[:,0][:,3]
 preds['Age_pred'] = np.array(labels_arr)[:,0][:,4]
 preds['Dnu_pred'] = np.array(labels_arr)[:,0][:,5]
+preds['sigma_star_Teff'] = np.array(sigma_stars)[:,0][:,1]
+preds['sigma_star_logg'] = np.array(sigma_stars)[:,0][:,2]
+preds['sigma_star_fe_h'] = np.array(sigma_stars)[:,0][:,3]
+preds['sigma_star_mg_h'] = np.array(sigma_stars)[:,0][:,4]
+preds['sigma_star_age'] = np.array(sigma_stars)[:,0][:,5]
+preds['sigma_star_Dnu'] = np.array(sigma_stars)[:,0][:,6]
+
 print(preds)
 preds.to_csv(path+'data/inferences_kic.csv', index=False)

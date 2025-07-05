@@ -21,6 +21,7 @@ pylab_params = {'legend.fontsize': 'large',
 pylab.rcParams.update(pylab_params)
 
 path = '/Users/chrislam/Desktop/cannon-ages/' 
+#path = '/home/c.lam/blue/cannon-ages/'
 
 def plot_heatmaps(label1, label2, color='Blues'):
     """Plot 2D histogram of Cannon vs APOKASC/Gaia stellar param
@@ -152,18 +153,24 @@ quit()
 # when plotting Kiel diagram, params should be homogeneous...should they be ASPCAP or Gaia phot or Gaia spec? 
 fits_image_filename_lite = path+'data/astraMWMLite-0.6.0.fits'
 hdul_lite = fits.open(fits_image_filename_lite)    
+lite_sdss_ids = np.array(hdul_lite[1].data.sdss_id).byteswap().newbyteorder()
+lite_snr = np.array(hdul_lite[1].data.snr).byteswap().newbyteorder()
+lite_df = pd.DataFrame({'sdss_id': lite_sdss_ids, 'snr': lite_snr})
+
 #lite = Table(hdul_lite[1].data).to_pandas()
 #hdul_lite.close()
 #print(lite.head())
 
-"""
+#"""
 # run one time to get only relevant columns from million-row ASPCAP fits file
 fits_image_filename_aspcap = path+'data/astraAllStarASPCAP-0.6.0.fits'
 hdul_aspcap = fits.open(fits_image_filename_aspcap)
 
 aspcap_source_ids = hdul_aspcap[2].data.gaia_dr3_source_id
 aspcap_source_ids_dr2 = hdul_aspcap[2].data.gaia_dr2_source_id
-aspcap_sdss_ids = hdul_aspcap[2].data.sdss_id
+aspcap_sdss_ids = np.array(hdul_aspcap[2].data.sdss_id).byteswap().newbyteorder()
+aspcap_visits = np.array(hdul_aspcap[2].data.n_apogee_visits).byteswap().newbyteorder()
+aspcap_snr = hdul_aspcap[2].data.snr
 aspcap_teffs = hdul_aspcap[2].data.teff
 aspcap_e_teffs = hdul_aspcap[2].data.e_teff
 aspcap_loggs = hdul_aspcap[2].data.logg
@@ -172,11 +179,17 @@ aspcap_fe_hs = hdul_aspcap[2].data.fe_h
 aspcap_e_fe_hs = hdul_aspcap[2].data.e_fe_h
 aspcap_mg_hs = hdul_aspcap[2].data.mg_h
 aspcap_e_mg_hs = hdul_aspcap[2].data.e_mg_h
-aspcap_df = pd.DataFrame({'source_id': aspcap_source_ids, 'aspcap_source_id_dr2': aspcap_source_ids_dr2, 'aspcap_sdss_id': aspcap_sdss_ids, 'aspcap_teff': aspcap_teffs,
-                           'aspcap_e_teff': aspcap_e_teffs, 'aspcap_logg': aspcap_loggs, 'aspcap_e_logg': aspcap_e_loggs, 'aspcap_fe_h': aspcap_fe_hs, 'aspcap_e_fe_h': aspcap_e_fe_hs,
+aspcap_df = pd.DataFrame({'source_id': aspcap_source_ids, 'aspcap_source_id_dr2': aspcap_source_ids_dr2, 'aspcap_sdss_id': aspcap_sdss_ids, 'aspcap_visits': aspcap_visits, 'aspcap_teff': aspcap_teffs,
+                           'aspcap_snr': aspcap_snr, 'aspcap_e_teff': aspcap_e_teffs, 'aspcap_logg': aspcap_loggs, 'aspcap_e_logg': aspcap_e_loggs, 'aspcap_fe_h': aspcap_fe_hs, 'aspcap_e_fe_h': aspcap_e_fe_hs,
                            'aspcap_mg_h': aspcap_mg_hs, 'aspcap_e_mg_h': aspcap_e_mg_hs})
+
+aspcap_lite_df = pd.merge(aspcap_df, lite_df, left_on='aspcap_sdss_id', right_on='sdss_id')
+print(aspcap_lite_df)
+print(aspcap_lite_df[['sdss_id', 'snr', 'aspcap_snr']])
+
 aspcap_df.to_csv(path+'data/aspcap.csv', index=False)
-"""
+quit()
+#"""
 aspcap_df = pd.read_csv(path+'data/aspcap.csv')
 print(aspcap_df)
 

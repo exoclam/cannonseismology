@@ -11,7 +11,7 @@ import thecannon as tc
 from sdss_access import Access
 
 path = '/Users/chrislam/Desktop/cannon-ages/' 
-#path = '/home/c.lam/blue/cannon-ages/'
+path = '/home/c.lam/blue/cannon-ages/'
 
 import matplotlib
 import matplotlib.pylab as pylab
@@ -44,6 +44,16 @@ model = tc.CannonModel.read(path+"apogee-serenelli-lite.model")
 s2 = np.loadtxt(path+'data/s2.txt',delimiter=',',dtype=float)
 spec_fit_chisq_arr = []
 
+def cov_matrix(cov):
+	# model-assigned label scatter: this is for sigma_A, B, as well as errorbars at the individual star level 
+	matrix = np.zeros((len(cov),6)) # Pre-allocate matrix
+	for i in range(0,len(cov)):
+		matrix[i,:] = np.sqrt(np.diag(cov[i]))
+
+	df_sigma = pd.DataFrame(matrix)
+	return df_sigma
+
+sigma_stars = []
 for sdss_id in tqdm(df['sdss_id']):
     #sdss_id = 55502474 #67401798 #66668317
     #print(sdss_id)
@@ -69,9 +79,20 @@ for sdss_id in tqdm(df['sdss_id']):
     # chisq of model spectral fit
     spec_fit_chisq = np.sum(((model_spectrum-norm_flux)**2)/(ivar**-1 + s2))
     spec_fit_chisq_arr.append(spec_fit_chisq)
+	
+    # get individual sigma per label per star
+    sigma_star = np.array(cov_matrix(cov_val))
+    sigma_stars.append(sigma_star)
 
 df['chisq'] = np.array(spec_fit_chisq_arr)
+df['sigma_star_Teff'] = np.array(sigma_stars)[:,0][:,0]
+df['sigma_star_logg'] = np.array(sigma_stars)[:,0][:,1]
+df['sigma_star_fe_h'] = np.array(sigma_stars)[:,0][:,2]
+df['sigma_star_mg_h'] = np.array(sigma_stars)[:,0][:,3]
+df['sigma_star_age'] = np.array(sigma_stars)[:,0][:,4]
+df['sigma_star_Dnu'] = np.array(sigma_stars)[:,0][:,5]
 df.to_csv(path+'data/enriched_lite_visits_chisq.csv', index=False)
+quit()
 """
 
 df = pd.read_csv(path+'data/enriched_lite_visits_chisq.csv', sep=',')

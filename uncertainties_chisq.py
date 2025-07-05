@@ -57,29 +57,50 @@ chisq_both = pd.concat([chisq_dones, chisq_dones_old])
 print(chisq_both)
 print(len(np.unique(chisq_both['sdss_id'])))
 
-# get row index of last done. start there. add the dones.
-last_iloc = aspcap_df['aspcap_sdss_id'].eq(57958968).idxmax()
-aspcap_df = aspcap_df.loc[last_iloc:]
-aspcap_df = pd.concat([aspcap_dones, aspcap_df])
-print(aspcap_df) 
+### I got my 500 stars! (see one section further below)
+chisq_pre_fit_aspcap = pd.read_csv(path+'data/chisq_pre_fit_aspcap.csv', sep=',')
+print(chisq_pre_fit_aspcap)
 
-inference_kic = pd.read_csv(path+'data/inferences_kic.csv')
+# calculate Z_A,B
+def _calculate_z(l_a, l_b, sigma_A, sigma_B, sigma_inflate):
+    """Eq11 from Behmard+25, for calculating error per label
 
-"""
-### I can further narrow down aspcap_df by grabbing number of visits via a one-time astraAllStarASPCAP crossmatch
-fits_image_filename_aspcap = path+'data/astraAllStarASPCAP-0.6.0.fits'
-hdul_aspcap = fits.open(fits_image_filename_aspcap)
-aspcap_sdss_id = np.array(hdul_aspcap[2].data['sdss_id']).byteswap().newbyteorder()
-aspcap_n_vists = np.array(hdul_aspcap[2].data['n_visits']).byteswap().newbyteorder()
-aspcap_full_df = pd.DataFrame({'sdss_id': aspcap_sdss_id, 'n_visit': aspcap_n_vists})
-aspcap_full_df['n_visit'] = aspcap_full_df['n_visit'].astype(int)
-aspcap_full_df = aspcap_full_df.loc[aspcap_full_df['n_visit']==2]
-aspcap_full_df.to_csv(path+'data/aspcap_df_visits.csv', index=False)
-quit()
-"""
-aspcap_df_visits = pd.read_csv(path+'data/aspcap_df_visits.csv')
-aspcap_df = pd.merge(aspcap_df, aspcap_df_visits, left_on='aspcap_sdss_id', right_on='sdss_id', how='left')
-aspcap_df = aspcap_df.loc[aspcap_df['n_visit']==2]
+    Args:
+        l_a (float): inferred label from first visit spectrum
+        l_b (float): inferred label from second visit spectrum
+        sigma_A (float): chisq of inferred spectrum vs first visit spectrum
+        sigma_B (float): chisq of inferred spectrum vs second visit spectrum
+
+    Returns:
+        z (float): Z_A,B
+    """
+
+    # Aida's ranges were from 0.016-0.025 dex 
+    sigma_inflate = 10**(sigma_inflate) # this is in regular space
+    numerator = l_a - l_b
+    #print(numerator)
+    #print(sigma_A, sigma_B)
+    #print(sigma_inflate)
+    denominator = np.sqrt(sigma_A**2 + sigma_B**2 + 2*sigma_inflate**2)
+    z = numerator/denominator
+
+    return z
+
+for sigma_inflate in np.linspace(-1, 1, 10): # this is in dex space
+    #z_Teff = _calculate_z(chisq_pre_fit_aspcap['l_A_Teffs'], chisq_pre_fit_aspcap['l_B_Teffs'], chisq_pre_fit_aspcap['sigma_A_teff'], chisq_pre_fit_aspcap['sigma_B_teff'], sigma_inflate)
+    #z_logg = _calculate_z(chisq_pre_fit_aspcap['l_A_loggs'], chisq_pre_fit_aspcap['l_B_loggs'], chisq_pre_fit_aspcap['sigma_A_logg'], chisq_pre_fit_aspcap['sigma_B_logg'], sigma_inflate)
+    #z_fe_h = _calculate_z(chisq_pre_fit_aspcap['l_A_fe_hs'], chisq_pre_fit_aspcap['l_B_fe_hs'], chisq_pre_fit_aspcap['sigma_A_fe_h'], chisq_pre_fit_aspcap['sigma_B_fe_h'], sigma_inflate)    
+    #z_mg_h = _calculate_z(chisq_pre_fit_aspcap['l_A_mg_hs'], chisq_pre_fit_aspcap['l_B_mg_hs'], chisq_pre_fit_aspcap['sigma_A_mg_h'], chisq_pre_fit_aspcap['sigma_B_mg_h'], sigma_inflate)    
+    #z_age = _calculate_z(chisq_pre_fit_aspcap['l_A_ages'], chisq_pre_fit_aspcap['l_B_ages'], chisq_pre_fit_aspcap['sigma_A_age'], chisq_pre_fit_aspcap['sigma_B_age'], sigma_inflate)    
+    z_Dnu = _calculate_z(chisq_pre_fit_aspcap['l_A_Dnus'], chisq_pre_fit_aspcap['l_B_Dnus'], chisq_pre_fit_aspcap['sigma_A_Dnu'], chisq_pre_fit_aspcap['sigma_B_Dnu'], sigma_inflate)    
+    print(sigma_inflate, 10**sigma_inflate, np.nanmedian(z_Dnu), np.nanstd(z_Dnu))
+
+# sigma_inflate_teff = 1.55 K (0.19 dex --> 0.01, 0.99)
+# sigma_inflate_logg = 0.039 (-1.414 dex --> -0.003, 1.002)
+# sigma_inflate_fe_h = 0.025 (-1.60 dex --> 0.014, 0.998)
+# sigma_inflate_mg_h = 0.027 (-1.571 dex --> 0.003, 1.000)
+# sigma_inflate_age = 0.398 (-0.40 dex --> 0.016, 1.006)
+# sigma_inflate_Dnu = 8.913 (0.95 dex --> 0.005, 1.004)
 
 """
 ### look back in astraMWMLite to get number of APOGEE visits per star
@@ -231,6 +252,8 @@ model.write(path+"apogee-serenelli-lite.model") # write out model
 quit()
 """
 
+chisq_dones_one = pd.read_csv(path+'data/chisq_dones_one.csv')
+
 ### for a star with 2 spectra, look for 500 such stars where n_apogee_visits==2, snr<=600, snr>=200, spec_chisq<100000
 # read in trained model
 model = tc.CannonModel.read(path+"apogee-serenelli-lite.model")
@@ -272,20 +295,31 @@ sigma_B_ages = []
 sigma_A_Dnus = []
 sigma_B_Dnus = []
 
-print(len(aspcap_df))
 aspcap_df_label_space = aspcap_df.loc[(aspcap_df['aspcap_teff'] <= np.max(preds['Teff_pred'])) & (aspcap_df['aspcap_teff'] >= np.min(preds['Teff_pred'])) & (aspcap_df['aspcap_logg'] <= np.max(preds['logg_pred'])) & (aspcap_df['aspcap_logg'] >= np.min(preds['logg_pred'])) & (aspcap_df['aspcap_fe_h'] <= np.max(preds['fe_h_pred'])) & (aspcap_df['aspcap_fe_h'] >= np.min(preds['fe_h_pred'])) & (aspcap_df['aspcap_mg_h'] <= np.max(preds['mg_h_pred'])) & (aspcap_df['aspcap_mg_h'] >= np.min(preds['mg_h_pred']))]
-print(len(aspcap_df_label_space))
+print(len(aspcap_df_label_space.drop_duplicates(subset=['aspcap_sdss_id'])))
 
+aspcap_df_visits = aspcap_df_label_space.loc[aspcap_df_label_space['aspcap_visits']==2]
+print(len(aspcap_df_visits.drop_duplicates(subset=['aspcap_sdss_id'])))
+
+aspcap_df_snr = aspcap_df_visits.loc[aspcap_df_visits['aspcap_snr']>=200]
+print(len(aspcap_df_snr.drop_duplicates(subset=['aspcap_sdss_id'])))
+#plt.hist(aspcap_df_snr.drop_duplicates(subset=['aspcap_sdss_id'])['aspcap_snr'], bins=40)
+#plt.xlabel('snr')
+#plt.savefig(path+'plots/aspcap_snr.png')
+#plt.show()
 print(aspcap_dones)
 print(aspcap_dones.drop_duplicates(subset=['aspcap_sdss_id']))
-quit()
 
 sdss_id_skips = []
 sdss_id_dones = []
+snr1s = []
+snr2s = []
+lite_snrs = []
 #for sdss_id in tqdm(aspcap_df_label_space['aspcap_sdss_id']):
-for sdss_id in tqdm(aspcap_dones['aspcap_sdss_id']):
+#for sdss_id in tqdm(aspcap_dones['aspcap_sdss_id']):
+#for sdss_id in tqdm(aspcap_df_snr.drop_duplicates(subset=['aspcap_sdss_id'])['aspcap_sdss_id']):
+for sdss_id in tqdm(chisq_dones_one['sdss_id']):
     #sdss_id = 55502474 #67401798 #66668317
-    #print(sdss_id)
     access = Access(release='ipl-3', verbose=False)
     access.remote()
     access.add('mwmStar', v_astra='0.6.0', component='', sdss_id=sdss_id)
@@ -321,6 +355,7 @@ for sdss_id in tqdm(aspcap_dones['aspcap_sdss_id']):
 
         wl_star = mwmStar[3].data['wavelength'][0]
         snr = mwmStar[3].data['snr'][0]
+        lite_snrs.append(snr)
         if snr>=200: # if stacked snr doesn't pass this, then individual visit snrs won't either
             pass
         else:
@@ -338,6 +373,8 @@ for sdss_id in tqdm(aspcap_dones['aspcap_sdss_id']):
         mwmVisit = fits.open(mwm_filename)
         snr1 = mwmVisit[3].data['snr'][0]
         snr2 = mwmVisit[3].data['snr'][1]
+        snr1s.append(snr1)
+        snr2s.append(snr2)
 
         if (snr1 <= 600) and (snr1 >= 200) and (snr2 <= 600) and (snr2 >= 200):
             pass
@@ -366,26 +403,6 @@ for sdss_id in tqdm(aspcap_dones['aspcap_sdss_id']):
         # chisq of model spectral fit
         spec_fit_chisq1 = np.sum(((model_spectrum1-norm_flux1)**2)/(ivar1**-1 + s2))
         spec_fit_chisq2 = np.sum(((model_spectrum2-norm_flux2)**2)/(ivar2**-1 + s2))
-
-        # calculate Z_A,B
-        def _calculate_z(l_a, l_b, spec_fit_chisq1, spec_fit_chisq2):
-            """Eq11 from Behmard+25, for calculating error per label
-
-            Args:
-                l_a (float): inferred label from first visit spectrum
-                l_b (float): inferred label from second visit spectrum
-                spec_fit_chisq1 (float): chisq of inferred spectrum vs first visit spectrum
-                spec_fit_chisq2 (float): chisq of inferred spectrum vs second visit spectrum
-
-            Returns:
-                z (float): Z_A,B
-            """
-            sigma_inflate = np.log10(0.016) # range from 0.016-0.025 dex
-            numerator = l_a - l_b
-            denominator = np.sqrt(spec_fit_chisq1**2 + spec_fit_chisq2**2 + 2*sigma_inflate**2)
-            z = numerator/denominator
-
-            return z
 
         def cov_matrix(cov):
             # model-assigned label scatter: this is for sigma_A, B, as well as errorbars at the individual star level 
@@ -441,9 +458,9 @@ for sdss_id in tqdm(aspcap_dones['aspcap_sdss_id']):
         sigma_B_Dnus.append(sigma_B[0][5])
 
         count += 1
-        print("keep: ", sdss_id)
+        print("keep: ", sdss_id, ", SNRs: ", snr1, snr, ", total: ", count)
         sdss_id_dones.append(sdss_id)
-        pd.DataFrame({'sdss_id': sdss_id_dones}).to_csv(path+'data/chisq_dones.csv', index=False)
+        pd.DataFrame({'sdss_id': sdss_id_dones}).to_csv(path+'data/chisq_dones_one.csv', index=False)
 
         if count == 500:
             break
@@ -453,11 +470,16 @@ for sdss_id in tqdm(aspcap_dones['aspcap_sdss_id']):
     
     print("count: ", count)
 
+print(len(sdss_ids))
+print(len(l_A_teffs))
+print(len(lite_snrs))
+print(len(snr1s))
+print(len(snr2s))
 chisq_df = pd.DataFrame({'sdss_id': sdss_ids, 'l_A_Teffs': l_A_teffs, 'l_B_Teffs': l_B_teffs, 'l_A_loggs': l_A_loggs, 'l_B_loggs': l_B_loggs,
                          'l_A_fe_hs': l_A_fe_hs, 'l_B_fe_hs': l_B_fe_hs, 'l_A_mg_hs': l_A_mg_hs, 'l_B_mg_hs': l_B_mg_hs, 'l_A_ages': l_A_ages,
                          'l_B_ages': l_B_ages, 'l_A_Dnus': l_A_Dnus, 'l_B_Dnus': l_B_Dnus, 'sigma_A_teff': sigma_A_teffs, 'sigma_B_teff': sigma_B_teffs,
                          'sigma_A_logg': sigma_A_loggs, 'sigma_B_logg': sigma_B_loggs, 'sigma_A_fe_h': sigma_A_fe_hs, 'sigma_B_fe_h': sigma_B_fe_hs,
                          'sigma_A_mg_h': sigma_A_mg_hs, 'sigma_B_mg_h': sigma_B_mg_hs, 'sigma_A_age': sigma_A_ages, 'sigma_B_age': sigma_B_ages,
-                         'sigma_A_Dnu': sigma_A_Dnus, 'sigma_B_Dnu': sigma_B_Dnus})
+                         'sigma_A_Dnu': sigma_A_Dnus, 'sigma_B_Dnu': sigma_B_Dnus, 'lite_snr': lite_snrs, 'snr1': snr1s, 'snr2': snr2s})
 chisq_df.to_csv(path+'data/chisq_pre_fit_aspcap.csv', index=False)
 #np.savetxt(path+'data/chisq.txt', spec_fit_chisq_arr.reshape(1, -1), fmt='%.4f', delimiter=',')
