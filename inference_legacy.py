@@ -178,8 +178,15 @@ preds.to_csv(path+'data/inferences_silva_aguirre.csv', index=False)
 preds = pd.read_csv(path+'data/inferences_silva_aguirre.csv',sep=',')
 print(list(preds.columns))
 
+cannon_preds = pd.read_csv(path+'data/enriched_lite_visits_chisq.csv', sep=',')
+print(cannon_preds)
+cannon_preds['age_error'] = np.sqrt(cannon_preds['sigma_star_age']**2 + 0.398**2)
+print(cannon_preds['age_error'])
+
+preds['age_error'] = cannon_preds['age_error']
+
 plt.plot(np.arange(0, 14), np.arange(0, 14), color='k', alpha=0.5)
-plt.errorbar(preds['Age_pred'], preds['Age'], yerr=[preds['sAgeP'],-1*preds['sAgeM']], linestyle='', marker='o', color="#B521B2", alpha=0.4)
+plt.errorbar(preds['Age_pred'], preds['Age'], xerr=preds['age_error'], yerr=[preds['sAgeP'],-1*preds['sAgeM']], linestyle='', marker='o', color="#B521B2", alpha=0.4)
 plt.xlabel(r"age [Gyr], Cannon")
 plt.ylabel(r"age [Gyr], Legacy")
 #plt.xlim([0, 14])

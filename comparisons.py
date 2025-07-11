@@ -161,7 +161,7 @@ lite_df = pd.DataFrame({'sdss_id': lite_sdss_ids, 'snr': lite_snr})
 #hdul_lite.close()
 #print(lite.head())
 
-#"""
+"""
 # run one time to get only relevant columns from million-row ASPCAP fits file
 fits_image_filename_aspcap = path+'data/astraAllStarASPCAP-0.6.0.fits'
 hdul_aspcap = fits.open(fits_image_filename_aspcap)
@@ -189,7 +189,7 @@ print(aspcap_lite_df[['sdss_id', 'snr', 'aspcap_snr']])
 
 aspcap_df.to_csv(path+'data/aspcap.csv', index=False)
 quit()
-#"""
+"""
 aspcap_df = pd.read_csv(path+'data/aspcap.csv')
 print(aspcap_df)
 
@@ -390,10 +390,17 @@ def process_trilegal(trilegal_dir_str):
 # introduce TRILEGAL
 trilegal = process_trilegal('trilegal')
 trilegal_constant_sfr = process_trilegal('trilegal_constant_sfr')
+trilegal_no_heating = process_trilegal('trilegal_no_heating')
+trilegal_constant_sfr_no_heating = process_trilegal('trilegal_constant_sfr_no_heating')
+print(trilegal_no_heating)
+print(trilegal_constant_sfr_no_heating)
+print(trilegal)
 
 # cull comparison samples to the label space
 trilegal_cull = cull(preds, trilegal, trilegal['Teff'], trilegal['logg'], trilegal['[M/H]'])
 trilegal_constant_sfr_cull = cull(preds, trilegal_constant_sfr, trilegal_constant_sfr['Teff'], trilegal_constant_sfr['logg'], trilegal_constant_sfr['[M/H]'])
+trilegal_no_heating_cull = cull(preds, trilegal_no_heating, trilegal_no_heating['Teff'], trilegal_no_heating['logg'], trilegal_no_heating['[M/H]'])
+trilegal_constant_sfr_no_heating_cull = cull(preds, trilegal_constant_sfr_no_heating, trilegal_constant_sfr_no_heating['Teff'], trilegal_constant_sfr_no_heating['logg'], trilegal_constant_sfr_no_heating['[M/H]'])
 
 print(nataf)
 nataf_aspcap_cull = cull(preds, nataf_aspcap, nataf_aspcap['aspcap_teff'], nataf_aspcap['aspcap_logg'], nataf_aspcap['aspcap_fe_h'], nataf_aspcap['aspcap_mg_h'])
@@ -403,9 +410,15 @@ bouma_aspcap_cull = cull(preds, bouma_aspcap, bouma_aspcap['aspcap_teff'], bouma
 print(bouma_aspcap_cull)
 print(bouma_aspcap)
 
+#plt.hist(trilegal_no_heating_cull['Age'], fill=True, color="#C46914", edgecolor="#C46914", alpha=0.5, lw=1.5, label='TRI no heating')
+#plt.show()
+#quit()
+
 bins = np.linspace(1, 8, 12) #np.linspace(0, 14, 20)
 plt.hist(trilegal_cull['Age'], bins=bins, fill=True, density=True, color="#309433", edgecolor="#309433", alpha=0.5, lw=1.5, label='TRI 2-step SFR')
 #plt.hist(trilegal_constant_sfr_cull['Age'], bins=bins, fill=True, density=True, color="#EB72DF", edgecolor="#EB72DF", alpha=0.5, lw=1.5, label='TRI constant SFR')
+#plt.hist(trilegal_no_heating_cull['Age'], bins=bins, fill=True, density=True, color="#C46914", edgecolor="#C46914", alpha=0.5, lw=1.5, label='TRI no heating')
+#plt.hist(trilegal_constant_sfr_no_heating_cull['Age'], bins=bins, fill=True, density=True, color="#8C72EB", edgecolor="#8C72EB", alpha=0.5, lw=1.5, label='TRI constant SFR, no heating')
 #plt.hist(berger_aspcap_cull['iso_age'], bins=bins, fill=False, density=True, edgecolor="#EB72DF", alpha=0.5, lw=1.5, label='Berger+20')
 #plt.hist(nataf_aspcap_cull['age'], bins=bins, fill=False, density=True, edgecolor="#729CEB", alpha=0.5, lw=1.5, label='Nataf+24')
 plt.hist(preds['Age_pred'], bins=bins, fill=True, density=True, color='black', edgecolor='black', alpha=0.7, lw=1.5, label='this work')

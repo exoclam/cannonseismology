@@ -144,12 +144,12 @@ preds['fe_h_pred'] = np.array(labels_arr)[:,0][:,2]
 preds['mg_h_pred'] = np.array(labels_arr)[:,0][:,3]
 preds['Age_pred'] = np.array(labels_arr)[:,0][:,4]
 preds['Dnu_pred'] = np.array(labels_arr)[:,0][:,5]
-preds['sigma_star_Teff'] = np.array(sigma_stars)[:,0][:,1]
-preds['sigma_star_logg'] = np.array(sigma_stars)[:,0][:,2]
-preds['sigma_star_fe_h'] = np.array(sigma_stars)[:,0][:,3]
-preds['sigma_star_mg_h'] = np.array(sigma_stars)[:,0][:,4]
-preds['sigma_star_age'] = np.array(sigma_stars)[:,0][:,5]
-preds['sigma_star_Dnu'] = np.array(sigma_stars)[:,0][:,6]
+preds['sigma_star_Teff'] = np.array(sigma_stars)[:,0][:,0]
+preds['sigma_star_logg'] = np.array(sigma_stars)[:,0][:,1]
+preds['sigma_star_fe_h'] = np.array(sigma_stars)[:,0][:,2]
+preds['sigma_star_mg_h'] = np.array(sigma_stars)[:,0][:,3]
+preds['sigma_star_age'] = np.array(sigma_stars)[:,0][:,4]
+preds['sigma_star_Dnu'] = np.array(sigma_stars)[:,0][:,5]
 
 print(preds)
 preds.to_csv(path+'data/inferences_kic.csv', index=False)

@@ -1,8 +1,3 @@
-# -*- coding: utf-8 -*-
-"""
-@author: behmardaida, 4/18/2025
-
-"""
 import numpy as np
 import matplotlib.pyplot as plt
 import pandas as pd
@@ -28,7 +23,7 @@ pylab.rcParams.update(pylab_params)
 
 
 path = '/Users/chrislam/Desktop/cannon-ages/' 
-#path = '/home/c.lam/blue/cannon-ages/'
+path = '/home/c.lam/blue/cannon-ages/'
 
 
 """
@@ -40,7 +35,7 @@ df = df.reset_index(drop=True)
 #df = df.loc[df['sdss_id_sec'] == 114879184]
 """
 
-df = pd.read_csv(path+'data/enriched_lite_visits.csv', sep=',')
+df = pd.read_csv(path+'data/enriched_lite_visits_chisq_ruwe.csv', sep=',') # formerly enriched_lite_visits.csv
 df['sdss_id'] = df['sdss_id'].astype(int)
 #df = df.iloc[:100]
 df = df[df.Teff.notnull()]
@@ -138,11 +133,13 @@ for path in paths:
 label_names = ['Teff', 'logg', 'feh', 'mg_h', 'Age', 'Dnu'] # 'numax'
 #preds = loocv.loocv(df, wl, flux_tr, ivar_tr, label_names)
 
-test_labels_arr, true_labels_arr, model, s2_arr = loocv.loocv(df, wl, flux_tr, ivar_tr, label_names)
+test_labels_arr, true_labels_arr, model, s2_arr, spec_fit_chisq_arr = loocv.loocv(df, wl, flux_tr, ivar_tr, label_names)
 s2_arr = np.array(s2_arr)
 print("s2: ", s2_arr, s2_arr.shape)
 print(np.nanmean(s2_arr))
 print(np.nanstd(s2_arr))
+spec_fit_chisq_arr = np.array(spec_fit_chisq_arr)
+print("spec_fit_chisq_arr: ", spec_fit_chisq_arr, spec_fit_chisq_arr.shape)
 
 #model.write(path+"apogee-serenelli-lite.model") # write out model
 # new_model = tc.CannonModel.read("apogee-dr14-giants.model") # read in model
@@ -168,8 +165,10 @@ preds['mg_h_test'] = np.array(true_labels_arr)[:,0][:,3]
 preds['Age_test'] = np.array(true_labels_arr)[:,0][:,4]
 preds['Dnu_test'] = np.array(true_labels_arr)[:,0][:,5]
 #preds['numax_test'] = np.array(true_labels_arr)[:,0][:,6]
+
+preds['chisq'] = spec_fit_chisq_arr
 print(preds)
-preds.to_csv(path+'data/preds_dnu_full.csv', index=False)
+preds.to_csv(path+'data/preds_dnu_full_ruwe.csv', index=False)
 
 np.savetxt(path+'data/s2_lite.txt', s2_arr, fmt='%d', delimiter=',', newline='\n')
 quit()

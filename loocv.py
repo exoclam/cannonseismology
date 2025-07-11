@@ -7,7 +7,7 @@ import os
 import shutil
 
 path = '/Users/chrislam/Desktop/cannon-ages/' 
-#path = '/home/c.lam/blue/cannon-ages/'
+path = '/home/c.lam/blue/cannon-ages/'
 
 import matplotlib.pylab as pylab
 import matplotlib
@@ -50,6 +50,7 @@ def loocv(df, wl, fluxes, ivars, label_names=["Teff", "logg", "feh", "mg_h", "Ag
     theta_arr = []
     cov_arr = []
     s2_arr = []
+    spec_fit_chisq_arr = []
     temp_length = 5
     #count = 0
     for i in tqdm(range(len(df))):
@@ -161,7 +162,10 @@ def loocv(df, wl, fluxes, ivars, label_names=["Teff", "logg", "feh", "mg_h", "Ag
         #df_sigma.to_csv(path+'data/test_output_sigmaA.csv',index=False)
 
         # get Cannon-derived model spectra
-        model_spectra = model(test_labels) ## this errors out? 
+        model_spectrum = model(test_labels) 
+        # chisq of model spectral fit
+        spec_fit_chisq = np.sum(((model_spectrum-flux_test)**2)/(ivar_test**-1 + s2))
+        spec_fit_chisq_arr.append(spec_fit_chisq)
 
         #Teff_pred = test_labels[:,0]
         #logg_pred = test_labels[:,1]
@@ -174,15 +178,15 @@ def loocv(df, wl, fluxes, ivars, label_names=["Teff", "logg", "feh", "mg_h", "Ag
     theta_arr_sum = np.sum(theta_arr, axis=0)
     theta_arr_sum = pd.DataFrame(theta_arr_sum)
     print(theta_arr_sum)
-    theta_arr_sum.to_csv(path+'data/theta_arr_sum.csv', index=False)
+    #theta_arr_sum.to_csv(path+'data/theta_arr_sum.csv', index=False)
 
     print(cov_arr)
     cov_arr = np.array(cov_arr).reshape(len(cov_arr), 6)
     print(cov_arr)
     cov_df = pd.DataFrame(cov_arr)
-    cov_df.to_csv(path+'data/sigma_A.csv', index=False)
+    #cov_df.to_csv(path+'data/sigma_A.csv', index=False)
 
-    return test_labels_arr, true_labels_arr, model, s2_arr
+    return test_labels_arr, true_labels_arr, model, s2_arr, spec_fit_chisq_arr
 
 
 def create_filenames_from_ids(ids, prefix, suffix):

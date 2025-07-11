@@ -13,3 +13,10 @@ Train The Cannon on stars with asteroseismic ages to infer more precise ages for
 - comparisons.py: compare predicted Cannon ages with gyrochronology, isochrone, etc ages for those same stars
 - uncertainties.py: calculate per-star errorbars
 - inference_kic.py: conduct inference using the trained model on KIC-APOGEE stars in the training label space
+- chisq_training.py: calculate spectra chisq for training sample. 
+
+Here's the order of operations for reproducing our results in Lam, Behmard, et al., in prep.
+- cannon-ages.ipynb: prep training sample.
+- crossmatch.ipynb: enrich with RUWE to omit binaries
+- for_aida.py: I never changed this file's name and now it's too late. train model. output LOOCV predictions and s2 scatter array. plot training set label space and LOOCV results.
+- 

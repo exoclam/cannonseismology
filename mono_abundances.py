@@ -30,7 +30,7 @@ training = pd.read_csv(path+'data/preds_dnu_full.csv')
 print(training)
 
 # add KIC column to preds DF
-df = pd.read_csv(path+'data/enriched_lite_visits.csv', sep=',')
+df = pd.read_csv(path+'data/enriched_lite_visits_chisq.csv', sep=',')
 kics = df.loc[df['sdss_id'].isin(training['sdss_id'])]['KIC']
 source_ids = df.loc[df['sdss_id'].isin(training['sdss_id'])]['source_id']
 source_id_dr2s = df.loc[df['sdss_id'].isin(training['sdss_id'])]['source_id_dr2']
@@ -42,6 +42,10 @@ training = training.dropna(subset=['KIC', 'source_id'])
 training['KIC'] = training['KIC'].astype(int)
 training['source_id'] = training['source_id'].astype(int)
 training['source_id_dr2'] = training['source_id_dr2'].astype(int)
+
+# crossmatch to enrich with chisq column
+training_merge = pd.merge(training, df, on='sdss_id', how='left')
+training['chisq'] = training_merge['chisq']
 
 def plot_heatmaps(label1, label2):
     """Plot 2D histogram of Cannon vs APOKASC/Gaia stellar param
@@ -90,13 +94,15 @@ def plot_mono(training_sub, lower, upper, xerr=0):
         upper (float): upper abundance
     """
 
-    plt.errorbar(training_sub['Age_test'], training_sub['Age_pred'], xerr=xerr, c='k', linestyle='', fmt='o')
+    plt.axis('square')
+    im = plt.errorbar(training_sub['Age_test'], training_sub['Age_pred'], xerr=xerr, yerr=training_sub['age_error'], c='k', linestyle='', fmt='o') # training_sub['chisq']
     plt.xlabel('APOKASC age [Gyr]')
     plt.ylabel('Cannon age [Gyr]')
     plt.xlim([0, 14])
     plt.ylim([0, 14])
     #plt.legend(bbox_to_anchor=(1., 1.05))
     plt.text(0.5, 13.5, f'{np.round(lower,1)} <= [Mg/Fe] < {np.round(upper,1)}: {len(training_sub)} stars')
+    #cbar = plt.colorbar(im, cmap='viridis', label=r'Cannon model $\chi^2$ fit')
     plt.tight_layout()
     if lower<0:
         plt.savefig(path+f'plots/mg_fe_mono_abundance_negative_{10*np.round(np.abs(lower),1)}.png', format='png', bbox_inches='tight')
@@ -113,6 +119,11 @@ plt.hist(training['mg_fe_test'], bins=np.linspace(-1, 5, 20))
 plt.xlabel('ASPCAP [Mg/Fe]')
 plt.savefig(path+'plots/mg_fe_test.png')
 plt.show()
+
+cannon_preds = pd.read_csv(path+'data/enriched_lite_visits_chisq.csv', sep=',')
+cannon_preds['age_error'] = np.sqrt(cannon_preds['sigma_star_age']**2 + 0.398**2)
+print(cannon_preds['age_error'])
+training['age_error'] = cannon_preds['age_error']
 
 for lower in lowers:
     #upper = lower+0.1 # fe/h
