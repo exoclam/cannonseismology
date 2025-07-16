@@ -21,8 +21,8 @@ pylab_params = {'legend.fontsize': 'large',
          'ytick.labelsize':'large'}
 pylab.rcParams.update(pylab_params)
 
-path = '/Users/chrislam/Desktop/cannon-ages/' 
-#path = '/home/c.lam/blue/cannon-ages/'
+#path = '/Users/chrislam/Desktop/cannon-ages/' 
+path = '/home/c.lam/blue/cannon-ages/'
 
 def get_spectra(sdss_id, path, folder, visit_flag=False):
 
@@ -124,7 +124,7 @@ for spectra_path in spectra_paths: # toggle for short or full version
 	source_id_dr2s.append(source_id_dr2)
 
 # read in model 
-model = tc.CannonModel.read(path+"apogee-serenelli-lite.model")
+model = tc.CannonModel.read(path+"apogee-serenelli-lite-ruwe.model") # apogee-serenelli-lite.model
 
 # inference!
 labels_arr = []
@@ -175,12 +175,13 @@ preds = pd.merge(preds, legacy, left_on='kepid', right_on='KIC', how='left')
 print(preds)
 preds.to_csv(path+'data/inferences_silva_aguirre.csv', index=False)
 """
-preds = pd.read_csv(path+'data/inferences_silva_aguirre.csv',sep=',')
+
+preds = pd.read_csv(path+'data/inferences_legacy_ruwe.csv',sep=',') # inferences_silva_aguirre_ruwe.csv
 print(list(preds.columns))
 
 cannon_preds = pd.read_csv(path+'data/enriched_lite_visits_chisq.csv', sep=',')
 print(cannon_preds)
-cannon_preds['age_error'] = np.sqrt(cannon_preds['sigma_star_age']**2 + 0.398**2)
+cannon_preds['age_error'] = np.sqrt(cannon_preds['sigma_star_age']**2 + 0.398**2) # use sigma_inflate-informed age error here
 print(cannon_preds['age_error'])
 
 preds['age_error'] = cannon_preds['age_error']

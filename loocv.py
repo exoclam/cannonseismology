@@ -7,7 +7,7 @@ import os
 import shutil
 
 path = '/Users/chrislam/Desktop/cannon-ages/' 
-path = '/home/c.lam/blue/cannon-ages/'
+#path = '/home/c.lam/blue/cannon-ages/'
 
 import matplotlib.pylab as pylab
 import matplotlib
@@ -57,6 +57,12 @@ def loocv(df, wl, fluxes, ivars, label_names=["Teff", "logg", "feh", "mg_h", "Ag
     #for i in tqdm(range(temp_length)):
         # split between training and test label sets. Train on all but one data point
         df_test = df.iloc[i]
+        df_tr = df.drop(i)
+
+        ### TROUBLESHOOT
+        df_test = df.loc[df['KIC']==7976303] # 6145937, 7976303, 9955598
+        i = df.loc[df['KIC']==7976303].index
+        print("KIC: ", i)
         df_tr = df.drop(i)
 
         # training set
@@ -127,9 +133,9 @@ def loocv(df, wl, fluxes, ivars, label_names=["Teff", "logg", "feh", "mg_h", "Ag
             print("booo")
         quit()
         """
-        print(flux_tr.shape)
-        print(ivar_tr.shape)
-        print(labels_tr.shape)
+        #print(flux_tr.shape)
+        #print(ivar_tr.shape)
+        #print(labels_tr.shape)
         # Construct a CannonModel object using a quadratic (O=2) polynomial vectorizer. No wait, linear should be much faster. But it was bad.
         model = tc.CannonModel(
             labels_tr, flux_tr, ivar_tr, dispersion=wl, # needed to set dispersion explicitly
@@ -142,14 +148,14 @@ def loocv(df, wl, fluxes, ivars, label_names=["Teff", "logg", "feh", "mg_h", "Ag
         theta_arr.append(theta)
 
         # inspect coefficients and run feature importance
-        print(theta.shape)
-        print(len(theta[:,0]))
+        #print(theta.shape)
+        #print(len(theta[:,0]))
         #feature_importance(theta, label_names)
         #fig_theta = tc.plot.theta(model)
 
         # test step
         test_labels, cov_val, metadata_val = model.test(flux_test, ivar_test)
-        print("test, cov, metadata: ", test_labels, cov_val, metadata_val)
+        #print("test, cov, metadata: ", test_labels, cov_val, metadata_val)
         test_labels_arr.append(test_labels)
 
         # use cov to propagate per-star, per-visit uncertainty 
@@ -174,6 +180,21 @@ def loocv(df, wl, fluxes, ivars, label_names=["Teff", "logg", "feh", "mg_h", "Ag
         #Age_pred = test_labels[:,4]
         #numax_pred = test_labels[:,5]
         #Dnu_pred = test_labels[:,6]
+
+        # TROUBLEHSOOT
+        plt.plot(wl, model_spectrum, label='Cannon')
+        try:
+            plt.plot(wl, flux_test[0], label='APOGEE')
+        except: # idk why but sometimes flux_test is (1,7409) and sometimes it's (,7409)
+            plt.plot(wl, flux_test, label='APOGEE') 
+        plt.xlabel('wavelength')
+        plt.ylabel('flux')
+        plt.legend()
+        plt.savefig(path+'plots/kic_7976303_spectrum.png')
+        plt.show()
+
+        print("chisq: ", spec_fit_chisq)
+        quit()
 
     theta_arr_sum = np.sum(theta_arr, axis=0)
     theta_arr_sum = pd.DataFrame(theta_arr_sum)

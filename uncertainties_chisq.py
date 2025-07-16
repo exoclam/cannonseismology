@@ -10,8 +10,8 @@ import thecannon as tc
 
 from sdss_access import Access
 
-path = '/Users/chrislam/Desktop/cannon-ages/' 
-#path = '/home/c.lam/blue/cannon-ages/'
+#path = '/Users/chrislam/Desktop/cannon-ages/' 
+path = '/home/c.lam/blue/cannon-ages/'
 
 df = pd.read_csv(path+'data/enriched_lite_visits.csv', sep=',')
 df['sdss_id'] = df['sdss_id'].astype(int)
@@ -45,6 +45,7 @@ print(aspcap_df)
 print(list(aspcap_df.columns))
 print(len(np.unique(aspcap_df['aspcap_sdss_id'])))
 
+"""
 # I painstakingly looked through 10% of this file and got 100 valid stars this way. Don't let that go to waste.
 # chisq_dones and chisq_dones_old are rsynced over from HPG runs
 chisq_dones = pd.read_csv(path+'data/chisq_dones.csv')
@@ -56,6 +57,7 @@ aspcap_dones = pd.concat([aspcap_dones, aspcap_dones_old])
 chisq_both = pd.concat([chisq_dones, chisq_dones_old])
 print(chisq_both)
 print(len(np.unique(chisq_both['sdss_id'])))
+"""
 
 ### I got my 500 stars! (see one section further below)
 chisq_pre_fit_aspcap = pd.read_csv(path+'data/chisq_pre_fit_aspcap.csv', sep=',')
@@ -86,6 +88,7 @@ def _calculate_z(l_a, l_b, sigma_A, sigma_B, sigma_inflate):
 
     return z
 
+"""
 for sigma_inflate in np.linspace(-1, 1, 10): # this is in dex space
     #z_Teff = _calculate_z(chisq_pre_fit_aspcap['l_A_Teffs'], chisq_pre_fit_aspcap['l_B_Teffs'], chisq_pre_fit_aspcap['sigma_A_teff'], chisq_pre_fit_aspcap['sigma_B_teff'], sigma_inflate)
     #z_logg = _calculate_z(chisq_pre_fit_aspcap['l_A_loggs'], chisq_pre_fit_aspcap['l_B_loggs'], chisq_pre_fit_aspcap['sigma_A_logg'], chisq_pre_fit_aspcap['sigma_B_logg'], sigma_inflate)
@@ -94,6 +97,7 @@ for sigma_inflate in np.linspace(-1, 1, 10): # this is in dex space
     #z_age = _calculate_z(chisq_pre_fit_aspcap['l_A_ages'], chisq_pre_fit_aspcap['l_B_ages'], chisq_pre_fit_aspcap['sigma_A_age'], chisq_pre_fit_aspcap['sigma_B_age'], sigma_inflate)    
     z_Dnu = _calculate_z(chisq_pre_fit_aspcap['l_A_Dnus'], chisq_pre_fit_aspcap['l_B_Dnus'], chisq_pre_fit_aspcap['sigma_A_Dnu'], chisq_pre_fit_aspcap['sigma_B_Dnu'], sigma_inflate)    
     print(sigma_inflate, 10**sigma_inflate, np.nanmedian(z_Dnu), np.nanstd(z_Dnu))
+"""
 
 # sigma_inflate_teff = 1.55 K (0.19 dex --> 0.01, 0.99)
 # sigma_inflate_logg = 0.039 (-1.414 dex --> -0.003, 1.002)
@@ -252,11 +256,11 @@ model.write(path+"apogee-serenelli-lite.model") # write out model
 quit()
 """
 
-chisq_dones_one = pd.read_csv(path+'data/chisq_dones_one.csv')
+#chisq_dones_one = pd.read_csv(path+'data/chisq_dones_one.csv')
 
 ### for a star with 2 spectra, look for 500 such stars where n_apogee_visits==2, snr<=600, snr>=200, spec_chisq<100000
 # read in trained model
-model = tc.CannonModel.read(path+"apogee-serenelli-lite.model")
+model = tc.CannonModel.read(path+"apogee-serenelli-lite-ruwe.model") # apogee-serenelli-lite.model
 s2 = np.loadtxt(path+'data/s2.txt',delimiter=',',dtype=float)
 count = 0
 spec_fit_chisq_arr = []
@@ -307,8 +311,8 @@ print(len(aspcap_df_snr.drop_duplicates(subset=['aspcap_sdss_id'])))
 #plt.xlabel('snr')
 #plt.savefig(path+'plots/aspcap_snr.png')
 #plt.show()
-print(aspcap_dones)
-print(aspcap_dones.drop_duplicates(subset=['aspcap_sdss_id']))
+#print(aspcap_dones)
+#print(aspcap_dones.drop_duplicates(subset=['aspcap_sdss_id']))
 
 sdss_id_skips = []
 sdss_id_dones = []
@@ -318,7 +322,7 @@ lite_snrs = []
 #for sdss_id in tqdm(aspcap_df_label_space['aspcap_sdss_id']):
 #for sdss_id in tqdm(aspcap_dones['aspcap_sdss_id']):
 #for sdss_id in tqdm(aspcap_df_snr.drop_duplicates(subset=['aspcap_sdss_id'])['aspcap_sdss_id']):
-for sdss_id in tqdm(chisq_dones_one['sdss_id']):
+for sdss_id in tqdm(chisq_pre_fit_aspcap['sdss_id']): # aspcap_df_snr or aspcap_dones. But now that we've identified 500 good ones, we can do this again w/o the hard part.
     #sdss_id = 55502474 #67401798 #66668317
     access = Access(release='ipl-3', verbose=False)
     access.remote()
@@ -460,7 +464,7 @@ for sdss_id in tqdm(chisq_dones_one['sdss_id']):
         count += 1
         print("keep: ", sdss_id, ", SNRs: ", snr1, snr, ", total: ", count)
         sdss_id_dones.append(sdss_id)
-        pd.DataFrame({'sdss_id': sdss_id_dones}).to_csv(path+'data/chisq_dones_one.csv', index=False)
+        pd.DataFrame({'sdss_id': sdss_id_dones}).to_csv(path+'data/chisq_dones_ruwe.csv', index=False)
 
         if count == 500:
             break
@@ -481,5 +485,5 @@ chisq_df = pd.DataFrame({'sdss_id': sdss_ids, 'l_A_Teffs': l_A_teffs, 'l_B_Teffs
                          'sigma_A_logg': sigma_A_loggs, 'sigma_B_logg': sigma_B_loggs, 'sigma_A_fe_h': sigma_A_fe_hs, 'sigma_B_fe_h': sigma_B_fe_hs,
                          'sigma_A_mg_h': sigma_A_mg_hs, 'sigma_B_mg_h': sigma_B_mg_hs, 'sigma_A_age': sigma_A_ages, 'sigma_B_age': sigma_B_ages,
                          'sigma_A_Dnu': sigma_A_Dnus, 'sigma_B_Dnu': sigma_B_Dnus, 'lite_snr': lite_snrs, 'snr1': snr1s, 'snr2': snr2s})
-chisq_df.to_csv(path+'data/chisq_pre_fit_aspcap.csv', index=False)
+chisq_df.to_csv(path+'data/chisq_pre_fit_aspcap_ruwe.csv', index=False)
 #np.savetxt(path+'data/chisq.txt', spec_fit_chisq_arr.reshape(1, -1), fmt='%.4f', delimiter=',')

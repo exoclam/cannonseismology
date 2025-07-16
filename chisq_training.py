@@ -42,7 +42,7 @@ p_da_ms = hdul_lite[1].data[hdul_lite[1].data.sdss_id==67660379].p_da_ms[0]
 print(p_da_ms)
 """
 
-#"""
+"""
 df = pd.read_csv(path+'data/enriched_lite_visits_chisq_ruwe.csv', sep=',')
 df['sdss_id'] = df['sdss_id'].astype(int)
 #df = df.iloc[:100]
@@ -59,7 +59,7 @@ df = df.reset_index(drop=True)
 
 df = df.loc[df['sdss_id']!=67766853] # drop indices where snr<50 (see test below)
 
-model = tc.CannonModel.read(path+"apogee-serenelli-lite.model")
+model = tc.CannonModel.read(path+"apogee-serenelli-lite-ruwe.model") # previously was apogee-serenelli-lite.model
 s2 = np.loadtxt(path+'data/s2.txt',delimiter=',',dtype=float)
 spec_fit_chisq_arr = []
 
@@ -74,40 +74,42 @@ def cov_matrix(cov):
 
 sigma_stars = []
 for sdss_id in tqdm(df['sdss_id']):
-    sdss_id = 67660379 #this one is the bad chisq one from the training set
+	sdss_id = 67114365
+    #sdss_id = 67660379 #this one is the bad chisq one from the training set
     #print(sdss_id)
-    access = Access(release='ipl-3', verbose=False)
-    access.remote()
-    access.add('mwmStar', v_astra='0.6.0', component='', sdss_id=sdss_id)
+	access = Access(release='ipl-3', verbose=False)
+	access.remote()
+	access.add('mwmStar', v_astra='0.6.0', component='', sdss_id=sdss_id)
 
-    access.set_stream()
-    access.commit()
-    mwm_filenameStar = access.full('mwmStar', v_astra='0.6.0', component='', sdss_id=sdss_id)
-    mwmStar = fits.open(mwm_filenameStar)
+	access.set_stream()
+	access.commit()
+	mwm_filenameStar = access.full('mwmStar', v_astra='0.6.0', component='', sdss_id=sdss_id)
+	mwmStar = fits.open(mwm_filenameStar)
 
-    wl_star = mwmStar[3].data['wavelength'][0]
-    flux = mwmStar[3].data['flux'][0]
-    ivar = mwmStar[3].data['ivar'][0]
-    wl, norm_flux, ivar = process_spectra_gaus_chris_version(flux, ivar, wl_star, L=10)
+	wl_star = mwmStar[3].data['wavelength'][0]
+	flux = mwmStar[3].data['flux'][0]
+	ivar = mwmStar[3].data['ivar'][0]
+	wl, norm_flux, ivar = process_spectra_gaus_chris_version(flux, ivar, wl_star, L=10)
 
-    test_labels, cov_val, metadata_val = model.test(norm_flux, ivar)
+	test_labels, cov_val, metadata_val = model.test(norm_flux, ivar)
 
     # get Cannon-derived model spectra
-    model_spectrum = model(test_labels)
-    plt.plot(wl, model_spectrum, label='Cannon')
-    plt.plot(wl, norm_flux, label='data')
-    plt.xlabel('wavelength')
-    plt.ylabel('flux')
-    plt.show()
-    quit()
-
+	model_spectrum = model(test_labels)
+	
+	plt.plot(wl, model_spectrum, label='Cannon')
+	plt.plot(wl, norm_flux, label='data')
+	plt.xlabel('wavelength')
+	plt.ylabel('flux')
+	plt.show()
+	quit()
+	
     # chisq of model spectral fit
-    spec_fit_chisq = np.sum(((model_spectrum-norm_flux)**2)/(ivar**-1 + s2))
-    spec_fit_chisq_arr.append(spec_fit_chisq)
+	spec_fit_chisq = np.sum(((model_spectrum-norm_flux)**2)/(ivar**-1 + s2))
+	spec_fit_chisq_arr.append(spec_fit_chisq)
 	
     # get individual sigma per label per star
-    sigma_star = np.array(cov_matrix(cov_val))
-    sigma_stars.append(sigma_star)
+	sigma_star = np.array(cov_matrix(cov_val))
+	sigma_stars.append(sigma_star)
 
 df['chisq'] = np.array(spec_fit_chisq_arr)
 df['sigma_star_Teff'] = np.array(sigma_stars)[:,0][:,0]
@@ -118,25 +120,35 @@ df['sigma_star_age'] = np.array(sigma_stars)[:,0][:,4]
 df['sigma_star_Dnu'] = np.array(sigma_stars)[:,0][:,5]
 df.to_csv(path+'data/enriched_lite_visits_chisq_ruwe.csv', index=False)
 quit()
-#"""
+"""
 
+### Make Figs 3 & 4
 df = pd.read_csv(path+'data/enriched_lite_visits_chisq_ruwe.csv', sep=',')
 preds = pd.read_csv(path+'data/preds_dnu_full_ruwe.csv', sep=',')
+#plt.hist(df.chisq, density=True, label='enriched', alpha=0.2)
+#plt.hist(preds.chisq, density=True, label='preds', alpha=0.2)
+#plt.legend()
+#plt.show()
+#quit()
+
 preds = pd.merge(preds, df, on='sdss_id', how='left')
+#print(preds.loc[preds['chisq_x']>100000][['KIC','source_id']])
+#quit()
 #bad = preds.loc[preds['chisq']>50000]
 #print(bad[['sdss_id', 'Teff_test', 'logg_test', 'fe_h_test', 'mg_h_test', 'Age_test', 'Dnu_test', 'KIC', 'source_id', 'snr']])
 
-im = plt.scatter(preds['Teff_pred'], preds['Teff_test'], c=preds['chisq'])
+#print(preds.loc[preds.chisq_x>100000])
+im = plt.scatter(preds['Teff_pred'], preds['Teff_test'], c=preds['chisq_y'])
 plt.plot(preds['Teff_test'], preds['Teff_test'])
 plt.xlabel(r"Cannon $T_{\rm eff}$ [K]")
 plt.ylabel(r"ASPCAP $T_{\rm eff}$ [K]")
-plt.xlim([4750, 6750])
-plt.ylim([4750, 6750])
+plt.xlim([min(preds['Teff_test'])-100, max(preds['Teff_test'])+100])
+plt.ylim([min(preds['Teff_test']-100), max(preds['Teff_test'])+100])
 cbar = plt.colorbar(im, cmap='viridis', label=r'Cannon model $\chi^2$ fit')
 plt.savefig(path+'plots/teff_check_dnu_full_ruwe.png')
 plt.show()
 
-im = plt.scatter(preds['logg_pred'], preds['logg_test'], c=preds['chisq'])
+im = plt.scatter(preds['logg_pred'], preds['logg_test'], c=preds['chisq_y'])
 plt.plot(preds['logg_test'], preds['logg_test'])
 plt.xlabel(r"Cannon logg")
 plt.ylabel(r"ASPCAP logg")
@@ -146,7 +158,7 @@ cbar = plt.colorbar(im, cmap='viridis', label=r'Cannon model $\chi^2$ fit')
 plt.savefig(path+'plots/logg_check_dnu_full_ruwe.png')
 plt.show()
 
-im = plt.scatter(preds['fe_h_pred'], preds['fe_h_test'], c=preds['chisq'])
+im = plt.scatter(preds['fe_h_pred'], preds['fe_h_test'], c=preds['chisq_y'])
 plt.plot(preds['fe_h_test'], preds['fe_h_test'])
 plt.xlabel(r"Cannon [Fe/H]")
 plt.ylabel(r"ASPCAP [Fe/H]")
@@ -156,7 +168,7 @@ cbar = plt.colorbar(im, cmap='viridis', label=r'Cannon model $\chi^2$ fit')
 plt.savefig(path+'plots/feh_check_dnu_full_ruwe.png')
 plt.show()
 
-im = plt.scatter(preds['mg_h_pred'], preds['mg_h_test'], c=preds['chisq'])
+im = plt.scatter(preds['mg_h_pred'], preds['mg_h_test'], c=preds['chisq_y'])
 plt.plot(preds['mg_h_test'], preds['mg_h_test'])
 plt.xlabel(r"Cannon [Mg/H]")
 plt.ylabel(r"ASPCAP [Mg/H]")
@@ -166,7 +178,7 @@ cbar = plt.colorbar(im, cmap='viridis', label=r'Cannon model $\chi^2$ fit')
 plt.savefig(path+'plots/mg_h_check_dnu_full_ruwe.png')
 plt.show()
 
-im = plt.scatter(preds['Age_pred'], preds['Age_test'], c=preds['chisq'])
+im = plt.scatter(preds['Age_pred'], preds['Age_test'], c=preds['chisq_y'])
 plt.plot(preds['Age_test'], preds['Age_test'])
 plt.xlabel(r"Cannon age [Gyr]")
 plt.ylabel(r"S17 age [Gyr]")
@@ -176,7 +188,7 @@ cbar = plt.colorbar(im, cmap='viridis', label=r'Cannon model $\chi^2$ fit')
 plt.savefig(path+'plots/age_check_dnu_full_ruwe.png')
 plt.show()
 
-im = plt.scatter(preds['Dnu_pred'], preds['Dnu_test'], c=preds['chisq'])
+im = plt.scatter(preds['Dnu_pred'], preds['Dnu_test'], c=preds['chisq_y'])
 plt.plot(preds['Dnu_test'], preds['Dnu_test'])
 plt.xlabel(r'Cannon $\Delta \nu [\mu Hz]$')
 plt.ylabel(r'S17 $\Delta \nu [\mu Hz]$')
@@ -185,7 +197,7 @@ plt.ylim([0, 160])
 cbar = plt.colorbar(im, cmap='viridis', label=r'Cannon model $\chi^2$ fit')
 plt.savefig(path+'plots/Dnu_check_dnu_full_ruwe.png')
 plt.show()
-
+quit()
 """
 plt.scatter(preds['numax_pred'], preds['numax_test'])
 plt.plot(preds['numax_test'], preds['numax_test'])

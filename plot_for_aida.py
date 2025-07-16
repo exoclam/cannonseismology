@@ -18,7 +18,7 @@ from loocv import *
 
 path = '/Users/chrislam/Desktop/cannon-ages/' 
 
-#"""
+
 import matplotlib
 import matplotlib.pylab as pylab
 matplotlib.rcParams.update({'errorbar.capsize': 1})
@@ -28,10 +28,42 @@ pylab_params = {'legend.fontsize': 'large',
          'xtick.labelsize':'large',
          'ytick.labelsize':'large'}
 pylab.rcParams.update(pylab_params)
-#"""
 
-preds = pd.read_csv(path+'data/preds_dnu_full.csv')
+"""
+### Fig 1
+preds = pd.read_csv(path+'data/preds_dnu_full_ruwe.csv')
 print(preds)
+plt.hist(preds['Teff_test'],color='k')
+plt.xlabel(r"ASPCAP $T_{\rm eff}$ [K]")
+plt.savefig(path+'plots/teff_ruwe.png')
+plt.show()
+
+plt.hist(preds['logg_test'],color='k')
+plt.xlabel(r"ASPCAP logg")
+plt.savefig(path+'plots/logg_ruwe.png')
+plt.show()
+
+plt.hist(preds['fe_h_test'],color='k')
+plt.xlabel(r"ASPCAP [Fe/H]")
+plt.savefig(path+'plots/fe_h_ruwe.png')
+plt.show()
+
+plt.hist(preds['mg_h_test'],color='k')
+plt.xlabel(r"ASPCAP [Mg/H]")
+plt.savefig(path+'plots/mg_h_ruwe.png')
+plt.show()
+
+plt.hist(preds['Age_test'],color='k')
+plt.xlabel(r"S17 Age [Gyr]")
+plt.savefig(path+'plots/age_ruwe.png')
+plt.show()
+
+plt.hist(preds['Dnu_test'],color='k')
+plt.xlabel(r'S17 $\Delta \nu [\mu Hz]$')
+plt.savefig(path+'plots/teff_ruwe.png')
+plt.show()
+quit()
+"""
 
 def plot_heatmaps(label1, label2):
     """Plot 2D histogram of Cannon vs APOKASC/Gaia stellar param
@@ -84,8 +116,9 @@ def compute_rms_scatter(label1, label2):
 inferences_kic = pd.read_csv(path+'data/inferences_kic.csv')
 print(inferences_kic)
 
-enriched_lite_visits = pd.read_csv(path+'data/enriched_lite_visits.csv')
+enriched_lite_visits = pd.read_csv(path+'data/enriched_lite_visits_chisq_ruwe.csv')
 print(enriched_lite_visits)
+quit()
 
 color='black'
 plt.errorbar(inferences_kic['Teff_pred'], inferences_kic['teff'], yerr=[inferences_kic['teff_err1'], -1*inferences_kic['teff_err2']], 

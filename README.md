@@ -15,8 +15,14 @@ Train The Cannon on stars with asteroseismic ages to infer more precise ages for
 - inference_kic.py: conduct inference using the trained model on KIC-APOGEE stars in the training label space
 - chisq_training.py: calculate spectra chisq for training sample. 
 
-Here's the order of operations for reproducing our results in Lam, Behmard, et al., in prep.
+Here's the order of operations for reproducing our results and figures in Lam, Behmard, et al., in prep. 
 - cannon-ages.ipynb: prep training sample.
 - crossmatch.ipynb: enrich with RUWE to omit binaries
-- for_aida.py: I never changed this file's name and now it's too late. train model. output LOOCV predictions and s2 scatter array. plot training set label space and LOOCV results.
+- for_aida.py: I never changed this file's name and now it's too late lol. train model. output LOOCV predictions and s2 scatter array. 
+- plot_for_aida.py: plot Fig 1 (label space histograms)
+- inference_kic.py: infer ages for KIC-APOGEE-label space cross match. 
+- inference_legacy.py: infer ages for the Silva Aguirre+17 APOKASC Legacy sample.
+- mono_abundances.py: 
+- chisq_training.py: compute spectra chisq for training sample. plot Figs 3 & 4 (LOOCV results, with and w/o old, alpha-poor stars) 
+- uncertainties_chisq.py: this has been repurposed several times. first it was used to identify 500 appropriate stars. that took a while. then to calculate chisq and sigmas for those 500 stars. that took a smaller while. 
 - 

@@ -23,7 +23,7 @@ pylab.rcParams.update(pylab_params)
 
 
 path = '/Users/chrislam/Desktop/cannon-ages/' 
-path = '/home/c.lam/blue/cannon-ages/'
+#path = '/home/c.lam/blue/cannon-ages/'
 
 
 """
@@ -133,6 +133,22 @@ for path in paths:
 label_names = ['Teff', 'logg', 'feh', 'mg_h', 'Age', 'Dnu'] # 'numax'
 #preds = loocv.loocv(df, wl, flux_tr, ivar_tr, label_names)
 
+"""
+# train model on everyone
+labels = np.vstack((np.array(df.Teff),np.array(df.logg),np.array(df.feh),np.array(df.mg_h),np.array(df.Age),np.array(df.Dnu))).T
+model = tc.CannonModel(
+	labels, flux_tr, ivar_tr, dispersion=wl, # needed to set dispersion explicitly
+	vectorizer=tc.vectorizer.PolynomialVectorizer(label_names, 2)) 
+#print(model.vectorizer.human_readable_label_vector)
+
+# training step
+theta, s2, metadata = model.train(threads=1)
+model.write(path+"apogee-serenelli-lite-ruwe.model") # write out model
+quit()
+"""
+
+#"""
+# LOOCV
 test_labels_arr, true_labels_arr, model, s2_arr, spec_fit_chisq_arr = loocv.loocv(df, wl, flux_tr, ivar_tr, label_names)
 s2_arr = np.array(s2_arr)
 print("s2: ", s2_arr, s2_arr.shape)
@@ -140,8 +156,9 @@ print(np.nanmean(s2_arr))
 print(np.nanstd(s2_arr))
 spec_fit_chisq_arr = np.array(spec_fit_chisq_arr)
 print("spec_fit_chisq_arr: ", spec_fit_chisq_arr, spec_fit_chisq_arr.shape)
+#"""
 
-#model.write(path+"apogee-serenelli-lite.model") # write out model
+# model.write(path+"apogee-serenelli-lite.model") # write out model
 # new_model = tc.CannonModel.read("apogee-dr14-giants.model") # read in model
 
 preds = pd.DataFrame()

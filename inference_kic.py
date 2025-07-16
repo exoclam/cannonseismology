@@ -78,7 +78,7 @@ for spectra_path in spectra_paths: # toggle for short or full version
 	source_id_dr2s.append(source_id_dr2)
 
 # read in model 
-model = tc.CannonModel.read(path+"apogee-serenelli-lite.model")
+model = tc.CannonModel.read(path+"apogee-serenelli-lite-ruwe.model") # apogee-serenelli-lite.model
 
 def cov_matrix(cov):
 	# model-assigned label scatter: this is for sigma_A, B, as well as errorbars at the individual star level 
