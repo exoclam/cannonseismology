@@ -24,6 +24,11 @@ pylab_params = {'legend.fontsize': 'large',
 pylab.rcParams.update(pylab_params)
 
 """
+fits_image_filename_lite = path+'data/astraMWMLite-0.6.0.fits'
+hdul_lite = fits.open(fits_image_filename_lite)  
+snr = hdul_lite[1].data[hdul_lite[1].data.sdss_id==67114365].snr[0]
+print(snr)
+quit()
 ### is The Bad Star a fast rotator? a binary? why is its chisq higher than everyone else's? (see crossmatch.ipynb for the conclusion of this saga.)
 vsini = 2* np.pi * 695700 * np.sin(1.19) /2005344
 print(vsini)
@@ -74,7 +79,7 @@ def cov_matrix(cov):
 
 sigma_stars = []
 for sdss_id in tqdm(df['sdss_id']):
-	sdss_id = 67114365
+	sdss_id = 7976303 # chisq of >400000
     #sdss_id = 67660379 #this one is the bad chisq one from the training set
     #print(sdss_id)
 	access = Access(release='ipl-3', verbose=False)
@@ -124,7 +129,7 @@ quit()
 
 ### Make Figs 3 & 4
 df = pd.read_csv(path+'data/enriched_lite_visits_chisq_ruwe.csv', sep=',')
-preds = pd.read_csv(path+'data/preds_dnu_full_ruwe.csv', sep=',')
+preds = pd.read_csv(path+'data/preds_dnu_full_ruwe_minus3.csv', sep=',') # preds_dnu_full_ruwe.csv, preds_dnu_full_ruwe_minus3.csv
 #plt.hist(df.chisq, density=True, label='enriched', alpha=0.2)
 #plt.hist(preds.chisq, density=True, label='preds', alpha=0.2)
 #plt.legend()
@@ -132,70 +137,92 @@ preds = pd.read_csv(path+'data/preds_dnu_full_ruwe.csv', sep=',')
 #quit()
 
 preds = pd.merge(preds, df, on='sdss_id', how='left')
+preds = preds.loc[preds['chisq_x'] < 100000] # 50000
+print(preds.loc[preds.chisq_x>90000][['KIC','chisq_x','Teff_test','logg_test', 'fe_h_test', 'mg_h_test', 'Age_test', 'Dnu_test', 'ruwe_x', 'source_id']])
+print(preds)
+plt.hist(preds.chisq_x)
+plt.show()
+
 #print(preds.loc[preds['chisq_x']>100000][['KIC','source_id']])
 #quit()
 #bad = preds.loc[preds['chisq']>50000]
 #print(bad[['sdss_id', 'Teff_test', 'logg_test', 'fe_h_test', 'mg_h_test', 'Age_test', 'Dnu_test', 'KIC', 'source_id', 'snr']])
+#bad_thresh = np.percentile(preds['chisq_x'], 84)
+#bad_preds = preds.loc[preds['chisq_x'] >= bad_thresh]
+#print(bad_preds[['sdss_id', 'Teff_test', 'logg_test', 'fe_h_test', 'mg_h_test', 'Age_test', 'Dnu_test', 'KIC', 'source_id']])
+#quit()
 
 #print(preds.loc[preds.chisq_x>100000])
-im = plt.scatter(preds['Teff_pred'], preds['Teff_test'], c=preds['chisq_y'])
+im = plt.scatter(preds['Teff_pred'], preds['Teff_test'], c=preds['chisq_x'])
+rms = np.round(np.sqrt(np.sum((preds['Teff_pred']-preds['Teff_test'])**2)/len(preds)), 1)
 plt.plot(preds['Teff_test'], preds['Teff_test'])
+plt.text(4750, 6550, f'rms: {rms} K', fontsize=12)
 plt.xlabel(r"Cannon $T_{\rm eff}$ [K]")
 plt.ylabel(r"ASPCAP $T_{\rm eff}$ [K]")
 plt.xlim([min(preds['Teff_test'])-100, max(preds['Teff_test'])+100])
 plt.ylim([min(preds['Teff_test']-100), max(preds['Teff_test'])+100])
 cbar = plt.colorbar(im, cmap='viridis', label=r'Cannon model $\chi^2$ fit')
-plt.savefig(path+'plots/teff_check_dnu_full_ruwe.png')
+plt.savefig(path+'plots/teff_check_dnu_full_ruwe_minus3.png')
 plt.show()
 
-im = plt.scatter(preds['logg_pred'], preds['logg_test'], c=preds['chisq_y'])
+im = plt.scatter(preds['logg_pred'], preds['logg_test'], c=preds['chisq_x'])
+rms = np.round(np.sqrt(np.sum((preds['logg_pred']-preds['logg_test'])**2)/len(preds)), 2)
 plt.plot(preds['logg_test'], preds['logg_test'])
+plt.text(3.35, 4.35, f'rms: {rms} $cm/s^2$', fontsize=12)
 plt.xlabel(r"Cannon logg")
 plt.ylabel(r"ASPCAP logg")
 plt.xlim([3.3, 4.4])
 plt.ylim([3.3, 4.4])
 cbar = plt.colorbar(im, cmap='viridis', label=r'Cannon model $\chi^2$ fit')
-plt.savefig(path+'plots/logg_check_dnu_full_ruwe.png')
+plt.savefig(path+'plots/logg_check_dnu_full_ruwe_minus3.png')
 plt.show()
 
-im = plt.scatter(preds['fe_h_pred'], preds['fe_h_test'], c=preds['chisq_y'])
+im = plt.scatter(preds['fe_h_pred'], preds['fe_h_test'], c=preds['chisq_x'])
+rms = np.round(np.sqrt(np.sum((preds['fe_h_pred']-preds['fe_h_test'])**2)/len(preds)), 2)
 plt.plot(preds['fe_h_test'], preds['fe_h_test'])
+plt.text(-0.45, 0.45, f'rms: {rms}', fontsize=12)
 plt.xlabel(r"Cannon [Fe/H]")
 plt.ylabel(r"ASPCAP [Fe/H]")
-plt.xlim([-0.6, 0.5])
-plt.ylim([-0.6, 0.5])
+plt.xlim([-0.5, 0.5])
+plt.ylim([-0.5, 0.5])
 cbar = plt.colorbar(im, cmap='viridis', label=r'Cannon model $\chi^2$ fit')
-plt.savefig(path+'plots/feh_check_dnu_full_ruwe.png')
+plt.savefig(path+'plots/feh_check_dnu_full_ruwe_minus3.png')
 plt.show()
 
-im = plt.scatter(preds['mg_h_pred'], preds['mg_h_test'], c=preds['chisq_y'])
+im = plt.scatter(preds['mg_h_pred'], preds['mg_h_test'], c=preds['chisq_x'])
+rms = np.round(np.sqrt(np.sum((preds['mg_h_pred']-preds['mg_h_test'])**2)/len(preds)), 2)
 plt.plot(preds['mg_h_test'], preds['mg_h_test'])
+plt.text(-0.45, 0.45, f'rms: {rms}', fontsize=12)
 plt.xlabel(r"Cannon [Mg/H]")
 plt.ylabel(r"ASPCAP [Mg/H]")
-plt.xlim([-0.6, 0.5])
-plt.ylim([-0.6, 0.5])
+plt.xlim([-0.5, 0.5])
+plt.ylim([-0.5, 0.5])
 cbar = plt.colorbar(im, cmap='viridis', label=r'Cannon model $\chi^2$ fit')
-plt.savefig(path+'plots/mg_h_check_dnu_full_ruwe.png')
+plt.savefig(path+'plots/mg_h_check_dnu_full_ruwe_minus3.png')
 plt.show()
 
-im = plt.scatter(preds['Age_pred'], preds['Age_test'], c=preds['chisq_y'])
+im = plt.scatter(preds['Age_pred'], preds['Age_test'], c=preds['chisq_x'])
+rms = np.round(np.sqrt(np.sum((preds['Age_pred']-preds['Age_test'])**2)/len(preds)), 1)
 plt.plot(preds['Age_test'], preds['Age_test'])
+plt.text(0.75, 13.25, f'rms: {rms} Gyr', fontsize=12)
 plt.xlabel(r"Cannon age [Gyr]")
 plt.ylabel(r"S17 age [Gyr]")
 plt.xlim([0, 14])
 plt.ylim([0, 14])
 cbar = plt.colorbar(im, cmap='viridis', label=r'Cannon model $\chi^2$ fit')
-plt.savefig(path+'plots/age_check_dnu_full_ruwe.png')
+plt.savefig(path+'plots/age_check_dnu_full_ruwe_minus3.png')
 plt.show()
 
-im = plt.scatter(preds['Dnu_pred'], preds['Dnu_test'], c=preds['chisq_y'])
+im = plt.scatter(preds['Dnu_pred'], preds['Dnu_test'], c=preds['chisq_x'])
+rms = np.round(np.sqrt(np.sum((preds['Dnu_pred']-preds['Dnu_test'])**2)/len(preds)), 1)
 plt.plot(preds['Dnu_test'], preds['Dnu_test'])
+plt.text(7, 153, fr'rms: {rms} $\mu Hz$', fontsize=12)
 plt.xlabel(r'Cannon $\Delta \nu [\mu Hz]$')
 plt.ylabel(r'S17 $\Delta \nu [\mu Hz]$')
 plt.xlim([0, 160])
 plt.ylim([0, 160])
 cbar = plt.colorbar(im, cmap='viridis', label=r'Cannon model $\chi^2$ fit')
-plt.savefig(path+'plots/Dnu_check_dnu_full_ruwe.png')
+plt.savefig(path+'plots/Dnu_check_dnu_full_ruwe_minus3.png')
 plt.show()
 quit()
 """

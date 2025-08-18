@@ -25,4 +25,5 @@ Here's the order of operations for reproducing our results and figures in Lam, B
 - mono_abundances.py: 
 - chisq_training.py: compute spectra chisq for training sample. plot Figs 3 & 4 (LOOCV results, with and w/o old, alpha-poor stars) 
 - uncertainties_chisq.py: this has been repurposed several times. first it was used to identify 500 appropriate stars. that took a while. then to calculate chisq and sigmas for those 500 stars. that took a smaller while. 
-- 
+
+For the paper, after cannon-ages.ipynb, we run four_fold_cv.py to generate the first four sets of plots and the first two tables. 

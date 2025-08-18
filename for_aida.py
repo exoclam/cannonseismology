@@ -21,10 +21,8 @@ pylab_params = {'legend.fontsize': 'large',
          'ytick.labelsize':'large'}
 pylab.rcParams.update(pylab_params)
 
-
 path = '/Users/chrislam/Desktop/cannon-ages/' 
-#path = '/home/c.lam/blue/cannon-ages/'
-
+path = '/home/c.lam/blue/cannon-ages/'
 
 """
 df = pd.read_csv(path+'data/small.csv',index_col=False)
@@ -35,8 +33,12 @@ df = df.reset_index(drop=True)
 #df = df.loc[df['sdss_id_sec'] == 114879184]
 """
 
-df = pd.read_csv(path+'data/enriched_lite_visits_chisq_ruwe.csv', sep=',') # formerly enriched_lite_visits.csv
+df = pd.read_csv(path+'data/enriched_lite_visits.csv', sep=',') # formerly enriched_lite_visits_chisq_ruwe.csv, enriched_lite_visits.csv
 df['sdss_id'] = df['sdss_id'].astype(int)
+df = df.drop_duplicates(subset=['sdss_id'])
+#bad_kics = [6145937, 7976303, 9955598]
+#df = df.loc[~df['KIC'].isin(bad_kics)] # drop bad chisq KICs
+
 #df = df.iloc[:100]
 df = df[df.Teff.notnull()]
 df = df[df.mg_h.notnull()]
@@ -48,7 +50,16 @@ df = df[df.numax.notnull()]
 
 df = df.loc[df.Age >= 0] # get rid of -99 Gyr ages (error flag from APOKASC)
 df = df.reset_index(drop=True)
-print(df)
+
+### TROUBLESHOOT: plot chisq distribution
+"""
+preds_dnu_full_ruwe = pd.read_csv(path+'data/preds_dnu_full_ruwe.csv')
+plt.hist(preds_dnu_full_ruwe['chisq'], bins=np.linspace(0, 100000, 20))
+plt.xlabel(r'$\chi^2$')
+plt.savefig(path+'plots/chisq_post_ruwe.png')
+plt.show()
+quit()
+"""
 
 #print(np.min(df.Teff), np.max(df.Teff))
 #print(np.min(df.logg), np.max(df.logg))
@@ -90,15 +101,31 @@ plt.show()
 quit()
 """
 
+#"""
+### TROUBLESHOOT: hand-curate training set based on chisq troublehsooting analysis with Kiel and label space diagrams
+#df = df.loc[(df['Teff'] >= 5200) & (df['Teff'] <= 6400)] # less f Kraft break, more than K dwarf? 
+#df = df.loc[(df['logg'] >= 3.7) & (df['logg'] <= 4.4)] # need to verify where sub-giants are in this space
+#df = df.loc[(df['feh'] >= -0.4) & (df['feh'] <= 0.4)] 
+#df = df.loc[(df['mg_h'] >= -0.4) & (df['mg_h'] <= 0.4)] 
+
+### TROUBLESHOOT: turn off the above four cuts. Instead, we're just gonna do a cut of logg<4, to eliminate sub-giants
+#df = df.loc[(df['logg'] >= 4.0) & (df['logg'] <= 4.4)] # need to verify where sub-giants are in this space
+#df = df.reset_index(drop=True)
+#"""
+
 training_names = df['sdss_id'].astype(str)
 directory = path+'data/spectra/' # e.g., mwmStar-0.6.0-114879184.fits
 spectra_paths = get_files_in_order(directory, training_names)
-print(len(spectra_paths))
+
+#check_sdss_ids = []
+#for spectra_path in spectra_paths:
+#	check_sdss_id = get_number_between(spectra_path, 'mwmStar-0.6.0-', '.fits')
+#	check_sdss_ids.append(check_sdss_id)
 
 flux_tr=[]
 ivar_tr=[]
 for spectra_path in spectra_paths:
-	wl,flux_single,ivar_single = process_spectra(spectra_path,10) # 10 is the width of your Gaussian for continuum normalization
+	wl,flux_single,ivar_single = process_spectra_chisq(spectra_path,10) # 10 is the width of your Gaussian for continuum normalization
 	flux_tr.append(flux_single)
 	ivar_tr.append(ivar_single)
 
@@ -149,6 +176,7 @@ quit()
 
 #"""
 # LOOCV
+print(df)
 test_labels_arr, true_labels_arr, model, s2_arr, spec_fit_chisq_arr = loocv.loocv(df, wl, flux_tr, ivar_tr, label_names)
 s2_arr = np.array(s2_arr)
 print("s2: ", s2_arr, s2_arr.shape)
@@ -170,25 +198,33 @@ preds['sdss_id'] = df['sdss_id']
 preds['Teff_pred'] = np.array(test_labels_arr)[:,0][:,0]
 preds['logg_pred'] = np.array(test_labels_arr)[:,0][:,1]
 preds['fe_h_pred'] = np.array(test_labels_arr)[:,0][:,2]
-preds['mg_h_pred'] = np.array(test_labels_arr)[:,0][:,3]
-preds['Age_pred'] = np.array(test_labels_arr)[:,0][:,4]
-preds['Dnu_pred'] = np.array(test_labels_arr)[:,0][:,5]
-#preds['numax_pred'] = np.array(test_labels_arr)[:,0][:,6]
+try: # in case label vector is <5
+	preds['mg_h_pred'] = np.array(test_labels_arr)[:,0][:,3]
+	preds['Age_pred'] = np.array(test_labels_arr)[:,0][:,4]
+	preds['Dnu_pred'] = np.array(test_labels_arr)[:,0][:,5]
+	#preds['numax_pred'] = np.array(test_labels_arr)[:,0][:,6]
+except:
+	pass
 
 preds['Teff_test'] = np.array(true_labels_arr)[:,0][:,0]
 preds['logg_test'] = np.array(true_labels_arr)[:,0][:,1]
 preds['fe_h_test'] = np.array(true_labels_arr)[:,0][:,2]
-preds['mg_h_test'] = np.array(true_labels_arr)[:,0][:,3]
-preds['Age_test'] = np.array(true_labels_arr)[:,0][:,4]
-preds['Dnu_test'] = np.array(true_labels_arr)[:,0][:,5]
-#preds['numax_test'] = np.array(true_labels_arr)[:,0][:,6]
+try:
+	preds['mg_h_test'] = np.array(true_labels_arr)[:,0][:,3]
+	preds['Age_test'] = np.array(true_labels_arr)[:,0][:,4]
+	preds['Dnu_test'] = np.array(true_labels_arr)[:,0][:,5]
+	#preds['numax_test'] = np.array(true_labels_arr)[:,0][:,6]
+except:
+	pass
 
 preds['chisq'] = spec_fit_chisq_arr
 print(preds)
-preds.to_csv(path+'data/preds_dnu_full_ruwe.csv', index=False)
+preds.to_csv(path+'data/preds_dnu_full_chisq.csv', index=False) # preds_dnu_full_ruwe.csv, preds_dnu_full_pre_ruwe.csv, preds_dnu_full_ruwe_logg4.csv
 
-np.savetxt(path+'data/s2_lite.txt', s2_arr, fmt='%d', delimiter=',', newline='\n')
+np.savetxt(path+'data/s2_lite_chisq.txt', s2_arr, delimiter=',', newline='\n')
 quit()
+
+preds = pd.read_csv(path+'data/preds_dnu_full_ruwe_leq2.csv')
 
 plt.scatter(preds['Teff_pred'], preds['Teff_test'])
 plt.plot(preds['Teff_test'], preds['Teff_test'])

@@ -7,7 +7,7 @@ import os
 import shutil
 
 path = '/Users/chrislam/Desktop/cannon-ages/' 
-#path = '/home/c.lam/blue/cannon-ages/'
+path = '/home/c.lam/blue/cannon-ages/'
 
 import matplotlib.pylab as pylab
 import matplotlib
@@ -60,10 +60,10 @@ def loocv(df, wl, fluxes, ivars, label_names=["Teff", "logg", "feh", "mg_h", "Ag
         df_tr = df.drop(i)
 
         ### TROUBLESHOOT
-        df_test = df.loc[df['KIC']==7976303] # 6145937, 7976303, 9955598
-        i = df.loc[df['KIC']==7976303].index
+        #df_test = df.loc[df['KIC']==6145937] # 6145937, 7976303, 9955598
+        #i = df.loc[df['KIC']==6145937].index
         print("KIC: ", i)
-        df_tr = df.drop(i)
+        #df_tr = df.drop(i)
 
         # training set
         try:
@@ -83,8 +83,12 @@ def loocv(df, wl, fluxes, ivars, label_names=["Teff", "logg", "feh", "mg_h", "Ag
         Teff_tr = np.array(df_tr[label_names[0]].values)
         logg_tr = np.array(df_tr[label_names[1]].values)
         fe_h_tr = np.array(df_tr[label_names[2]].values)
-        mg_h_tr = np.array(df_tr[label_names[3]].values)
-        Age_tr = np.array(df_tr[label_names[4]].values)
+        try: # in case label vector is <5
+            mg_h_tr = np.array(df_tr[label_names[3]].values)
+            Age_tr = np.array(df_tr[label_names[4]].values)
+        except:
+            pass
+
         if len(label_names) == 7:
             Dnu_tr = np.array(df_tr[label_names[5]].values)
             numax_tr = np.array(df_tr[label_names[6]].values)
@@ -94,6 +98,8 @@ def loocv(df, wl, fluxes, ivars, label_names=["Teff", "logg", "feh", "mg_h", "Ag
             labels_tr = np.vstack((Teff_tr,logg_tr,fe_h_tr,mg_h_tr,Age_tr,Dnu_tr)).T
         elif len(label_names) == 5:
             labels_tr = np.vstack((Teff_tr,logg_tr,fe_h_tr,mg_h_tr,Age_tr)).T
+        elif len(label_names) == 3:
+            labels_tr = np.vstack((Teff_tr,logg_tr,fe_h_tr)).T
 
         # test set
         flux_test = fluxes[i]
@@ -104,8 +110,12 @@ def loocv(df, wl, fluxes, ivars, label_names=["Teff", "logg", "feh", "mg_h", "Ag
         Teff_test = np.array(df_test[label_names[0]])
         logg_test = np.array(df_test[label_names[1]])
         fe_h_test = np.array(df_test[label_names[2]])
-        mg_h_test = np.array(df_test[label_names[3]])
-        Age_test = np.array(df_test[label_names[4]])
+        try:
+            mg_h_test = np.array(df_test[label_names[3]])
+            Age_test = np.array(df_test[label_names[4]])
+        except:
+            pass
+
         if len(label_names) == 7:
             Dnu_test = np.array(df_test[label_names[5]]) # or 6
             numax_test = np.array(df_test[label_names[6]])
@@ -115,6 +125,8 @@ def loocv(df, wl, fluxes, ivars, label_names=["Teff", "logg", "feh", "mg_h", "Ag
             labels_test = np.vstack((Teff_test,logg_test,fe_h_test,mg_h_test,Age_test,Dnu_test)).T
         elif len(label_names) == 5:
             labels_test = np.vstack((Teff_test,logg_test,fe_h_test,mg_h_test,Age_test)).T
+        elif len(label_names) == 3:
+            labels_test = np.vstack((Teff_test,logg_test,fe_h_test)).T
         #print(labels_test)
         true_labels_arr.append(labels_test)
 
@@ -137,9 +149,12 @@ def loocv(df, wl, fluxes, ivars, label_names=["Teff", "logg", "feh", "mg_h", "Ag
         #print(ivar_tr.shape)
         #print(labels_tr.shape)
         # Construct a CannonModel object using a quadratic (O=2) polynomial vectorizer. No wait, linear should be much faster. But it was bad.
+        print(labels_tr.shape)
+        print(flux_tr.shape)
+        print(ivar_tr.shape)
         model = tc.CannonModel(
             labels_tr, flux_tr, ivar_tr, dispersion=wl, # needed to set dispersion explicitly
-            vectorizer=tc.vectorizer.PolynomialVectorizer(label_names, 2)) 
+            vectorizer=tc.vectorizer.PolynomialVectorizer(label_names, 2)) # 1 or 2
         #print(model.vectorizer.human_readable_label_vector)
 
         # training step
@@ -181,6 +196,7 @@ def loocv(df, wl, fluxes, ivars, label_names=["Teff", "logg", "feh", "mg_h", "Ag
         #numax_pred = test_labels[:,5]
         #Dnu_pred = test_labels[:,6]
 
+        """
         # TROUBLEHSOOT
         plt.plot(wl, model_spectrum, label='Cannon')
         try:
@@ -190,11 +206,12 @@ def loocv(df, wl, fluxes, ivars, label_names=["Teff", "logg", "feh", "mg_h", "Ag
         plt.xlabel('wavelength')
         plt.ylabel('flux')
         plt.legend()
-        plt.savefig(path+'plots/kic_7976303_spectrum.png')
+        #plt.savefig(path+'plots/kic_7976303_spectrum.png')
         plt.show()
 
         print("chisq: ", spec_fit_chisq)
         quit()
+        """
 
     theta_arr_sum = np.sum(theta_arr, axis=0)
     theta_arr_sum = pd.DataFrame(theta_arr_sum)
@@ -202,7 +219,7 @@ def loocv(df, wl, fluxes, ivars, label_names=["Teff", "logg", "feh", "mg_h", "Ag
     #theta_arr_sum.to_csv(path+'data/theta_arr_sum.csv', index=False)
 
     print(cov_arr)
-    cov_arr = np.array(cov_arr).reshape(len(cov_arr), 6)
+    cov_arr = np.array(cov_arr).reshape(len(cov_arr), len(label_names))
     print(cov_arr)
     cov_df = pd.DataFrame(cov_arr)
     #cov_df.to_csv(path+'data/sigma_A.csv', index=False)
