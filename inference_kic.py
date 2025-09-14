@@ -21,7 +21,7 @@ pylab_params = {'legend.fontsize': 'large',
          'ytick.labelsize':'large'}
 pylab.rcParams.update(pylab_params)
 
-#path = '/Users/chrislam/Desktop/cannon-ages/' 
+path = '/Users/chrislam/Desktop/cannon-ages/' 
 path = '/home/c.lam/blue/cannon-ages/'
 
 bedell_kic_apogee = pd.read_csv(path+'data/bedell_kic_apogee.csv')
@@ -78,7 +78,7 @@ for spectra_path in spectra_paths: # toggle for short or full version
 	source_id_dr2s.append(source_id_dr2)
 
 # read in model 
-model = tc.CannonModel.read(path+"apogee-serenelli-lite-ruwe.model") # apogee-serenelli-lite.model
+model = tc.CannonModel.read(path+"no-rgb.model") # apogee-serenelli-lite.model
 
 def cov_matrix(cov):
 	# model-assigned label scatter: this is for sigma_A, B, as well as errorbars at the individual star level 
@@ -152,4 +152,4 @@ preds['sigma_star_age'] = np.array(sigma_stars)[:,0][:,4]
 preds['sigma_star_Dnu'] = np.array(sigma_stars)[:,0][:,5]
 
 print(preds)
-preds.to_csv(path+'data/inferences_kic.csv', index=False)
+preds.to_csv(path+'data/inferences_kic_no_rgb.csv', index=False)

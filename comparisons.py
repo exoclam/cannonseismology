@@ -161,35 +161,50 @@ lite_df = pd.DataFrame({'sdss_id': lite_sdss_ids, 'snr': lite_snr})
 #hdul_lite.close()
 #print(lite.head())
 
-"""
+#"""
 # run one time to get only relevant columns from million-row ASPCAP fits file
 fits_image_filename_aspcap = path+'data/astraAllStarASPCAP-0.6.0.fits'
 hdul_aspcap = fits.open(fits_image_filename_aspcap)
 
-aspcap_source_ids = hdul_aspcap[2].data.gaia_dr3_source_id
+aspcap_vsini = np.array(hdul_aspcap[2].data.v_sini).byteswap().newbyteorder()
+aspcap_e_vsini = np.array(hdul_aspcap[2].data.e_v_sini).byteswap().newbyteorder()
+aspcap_vrad = np.array(hdul_aspcap[2].data.v_rad).byteswap().newbyteorder()
+aspcap_e_vrad = np.array(hdul_aspcap[2].data.e_v_rad).byteswap().newbyteorder()
+aspcap_source_ids = np.array(hdul_aspcap[2].data.gaia_dr3_source_id).byteswap().newbyteorder()
 aspcap_source_ids_dr2 = hdul_aspcap[2].data.gaia_dr2_source_id
 aspcap_sdss_ids = np.array(hdul_aspcap[2].data.sdss_id).byteswap().newbyteorder()
 aspcap_visits = np.array(hdul_aspcap[2].data.n_apogee_visits).byteswap().newbyteorder()
-aspcap_snr = hdul_aspcap[2].data.snr
-aspcap_teffs = hdul_aspcap[2].data.teff
-aspcap_e_teffs = hdul_aspcap[2].data.e_teff
-aspcap_loggs = hdul_aspcap[2].data.logg
-aspcap_e_loggs = hdul_aspcap[2].data.e_logg
-aspcap_fe_hs = hdul_aspcap[2].data.fe_h
-aspcap_e_fe_hs = hdul_aspcap[2].data.e_fe_h
-aspcap_mg_hs = hdul_aspcap[2].data.mg_h
-aspcap_e_mg_hs = hdul_aspcap[2].data.e_mg_h
+aspcap_snr = np.array(hdul_aspcap[2].data.snr).byteswap().newbyteorder()
+aspcap_teffs = np.array(hdul_aspcap[2].data.teff).byteswap().newbyteorder()
+aspcap_e_teffs = np.array(hdul_aspcap[2].data.e_teff).byteswap().newbyteorder()
+aspcap_loggs = np.array(hdul_aspcap[2].data.logg).byteswap().newbyteorder()
+aspcap_e_loggs = np.array(hdul_aspcap[2].data.e_logg).byteswap().newbyteorder()
+aspcap_fe_hs = np.array(hdul_aspcap[2].data.fe_h).byteswap().newbyteorder()
+aspcap_e_fe_hs = np.array(hdul_aspcap[2].data.e_fe_h).byteswap().newbyteorder()
+aspcap_mg_hs = np.array(hdul_aspcap[2].data.mg_h).byteswap().newbyteorder()
+aspcap_e_mg_hs = np.array(hdul_aspcap[2].data.e_mg_h).byteswap().newbyteorder()
 aspcap_df = pd.DataFrame({'source_id': aspcap_source_ids, 'aspcap_source_id_dr2': aspcap_source_ids_dr2, 'aspcap_sdss_id': aspcap_sdss_ids, 'aspcap_visits': aspcap_visits, 'aspcap_teff': aspcap_teffs,
                            'aspcap_snr': aspcap_snr, 'aspcap_e_teff': aspcap_e_teffs, 'aspcap_logg': aspcap_loggs, 'aspcap_e_logg': aspcap_e_loggs, 'aspcap_fe_h': aspcap_fe_hs, 'aspcap_e_fe_h': aspcap_e_fe_hs,
                            'aspcap_mg_h': aspcap_mg_hs, 'aspcap_e_mg_h': aspcap_e_mg_hs})
+
+print(aspcap_df)
+preds_aspcap = pd.merge(preds, aspcap_df, on='source_id', how='left')
+plt.scatter(preds_aspcap['aspcap_teff'], preds_aspcap['aspcap_logg'], s=5, alpha=0.3, label='this training sample', color='black')
+plt.xlabel(r"$T_{\rm eff}$ [K], ASPCAP")
+plt.ylabel('logg, ASPCAP')
+plt.legend()
+plt.gca().invert_yaxis()
+plt.gca().invert_xaxis()
+#plt.savefig(path+'plots/kiel.png')
+plt.show()
 
 aspcap_lite_df = pd.merge(aspcap_df, lite_df, left_on='aspcap_sdss_id', right_on='sdss_id')
 print(aspcap_lite_df)
 print(aspcap_lite_df[['sdss_id', 'snr', 'aspcap_snr']])
 
 aspcap_df.to_csv(path+'data/aspcap.csv', index=False)
-quit()
-"""
+
+#"""
 aspcap_df = pd.read_csv(path+'data/aspcap.csv')
 print(aspcap_df)
 
@@ -426,9 +441,9 @@ plt.xlabel('Age [Gyr]')
 plt.legend()
 plt.tight_layout()
 #plt.savefig(path+'plots/age_inference_kic.png')
-plt.savefig(path+'plots/trilegal_comparison.png')
+#plt.savefig(path+'plots/trilegal_comparison.png')
 plt.show()
-quit()
+#quit()
 
 preds_young = preds.loc[preds['Age_pred']<= 4]
 lu_young = lu_aspcap_cull.loc[lu_aspcap_cull['Age'] <= 4]
@@ -440,7 +455,7 @@ plt.xlabel('Age [Gyr]')
 #plt.xlim([0,4])
 plt.legend()
 plt.tight_layout()
-plt.savefig(path+'plots/age_inference_kic_young.png')
+#plt.savefig(path+'plots/age_inference_kic_young.png')
 plt.show()
 #"""
 
@@ -453,6 +468,8 @@ preds_aspcap = pd.merge(preds, aspcap_df, on='source_id', how='left')
 plt.scatter(preds_aspcap['aspcap_teff'], preds_aspcap['aspcap_logg'], s=5, alpha=0.3, label='this training sample', color='black')
 plt.xlabel(r"$T_{\rm eff}$ [K], ASPCAP")
 plt.ylabel('logg, ASPCAP')
+plt.gca().invert_yaxis()
+plt.gca().invert_xaxis()
 plt.legend()
-plt.savefig(path+'plots/kiel.png')
+#plt.savefig(path+'plots/kiel.png')
 plt.show()
