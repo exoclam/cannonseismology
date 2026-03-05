@@ -21,8 +21,8 @@ pylab_params = {'legend.fontsize': 'large',
          'ytick.labelsize':'large'}
 pylab.rcParams.update(pylab_params)
 
-#path = '/Users/chrislam/Desktop/cannon-ages/' 
-path = '/home/c.lam/blue/cannon-ages/'
+path = '/Users/chrislam/Desktop/cannon-ages/' 
+#path = '/home/c.lam/blue/cannon-ages/'
 
 def get_spectra(sdss_id, path, folder, visit_flag=False):
 
@@ -124,7 +124,7 @@ for spectra_path in spectra_paths: # toggle for short or full version
 	source_id_dr2s.append(source_id_dr2)
 
 # read in model 
-model = tc.CannonModel.read(path+"apogee-serenelli-lite-ruwe.model") # apogee-serenelli-lite.model
+model = tc.CannonModel.read(path+"no-rgb.model") # apogee-serenelli-lite.model, apogee-serenelli-lite-ruwe.model
 
 # inference!
 labels_arr = []
@@ -173,10 +173,11 @@ preds['Dnu_pred'] = np.array(labels_arr)[:,0][:,5]
 
 preds = pd.merge(preds, legacy, left_on='kepid', right_on='KIC', how='left')
 print(preds)
-preds.to_csv(path+'data/inferences_silva_aguirre.csv', index=False)
+preds.to_csv(path+'data/inferences_legacy_no_rgb.csv', index=False)
+quit()
 """
 
-preds = pd.read_csv(path+'data/inferences_legacy_ruwe.csv',sep=',') # inferences_silva_aguirre_ruwe.csv
+preds = pd.read_csv(path+'data/inferences_legacy_no_rgb.csv',sep=',') # inferences_silva_aguirre_ruwe.csv, inferences_legacy_ruwe.csv
 print(list(preds.columns))
 
 cannon_preds = pd.read_csv(path+'data/enriched_lite_visits_chisq.csv', sep=',')
@@ -185,6 +186,22 @@ cannon_preds['age_error'] = np.sqrt(cannon_preds['sigma_star_age']**2 + 0.398**2
 print(cannon_preds['age_error'])
 
 preds['age_error'] = cannon_preds['age_error']
+# rms
+rms = np.sqrt(np.mean(preds['Age']-preds['Age_pred']))
+print(rms)
+
+# keep only LEGACY stars that overlap in stellar param space with our training sample
+#print(preds)
+preds = preds.loc[(preds['logg_aspcap']>=3.8) & (preds['logg_aspcap']<=4.3) & (preds['teff']<=6300) & (preds['teff']>=5600)]
+#print(preds)
+rms = np.sqrt(np.mean(preds['Age']-preds['Age_pred']))
+print(rms)
+
+#legacy = pd.read_csv(path+'data/silva-aguirre-legacy.txt',sep='\s+')
+#print(legacy)
+#legacy_preds = pd.merge(legacy, preds, left_on='KIC', right_on='kepid', how='inner')
+#print(legacy_preds[['Age_x','Age_y']])
+print("preds: ", preds)
 
 plt.plot(np.arange(0, 14), np.arange(0, 14), color='k', alpha=0.5)
 plt.errorbar(preds['Age_pred'], preds['Age'], xerr=preds['age_error'], yerr=[preds['sAgeP'],-1*preds['sAgeM']], linestyle='', marker='o', color="#B521B2", alpha=0.4)
@@ -193,5 +210,49 @@ plt.ylabel(r"age [Gyr], Legacy")
 #plt.xlim([0, 14])
 #plt.ylim([0, 14])
 #plt.legend()
-plt.savefig(path+'plots/legacy_age_compare.png')
+#plt.savefig(path+'plots/legacy_age_compare_no_rgb.png')
+#plt.savefig(path+'plots/legacy_age_compare_no_rgb_limited.png')
+plt.show()
+
+#### new stuff, to check LEGACY comparison
+training = pd.read_csv(path+'data/4_fold_cv_no_gb.csv')
+print(len(preds))
+print(len(training))
+training_rgb = pd.read_csv(path+'data/4_fold_cv.csv')
+print(len(training_rgb))
+
+legacy = pd.read_csv(path+'data/silva-aguirre-legacy.txt',sep='\s+')
+bedell = Table.read('/Users/chrislam/Desktop/psps/data/kepler_dr3_good.fits')
+bedell_df = bedell.to_pandas()
+legacy_bedell = pd.merge(legacy, bedell_df, left_on='KIC', right_on='kepid', how='left')
+fits_image_filename_lite = path+'data/astraMWMLite-0.6.0.fits'
+hdul_lite = fits.open(fits_image_filename_lite)  
+lite_source_ids = hdul_lite[1].data.gaia_dr3_source_id
+
+# use DR3 source_id to get sdss_id from mwmLite
+legacy_bedell_apogee = legacy_bedell.loc[legacy_bedell['source_id'].isin(lite_source_ids)]
+
+print(legacy_bedell_apogee)
+print(list(legacy_bedell_apogee.columns))
+#plt.hist(legacy_bedell_apogee.Age, label='LEGACY', alpha=0.7, density=True)
+plt.hist(preds.Age, label='LEGACY', alpha=0.7, density=True)
+plt.hist(preds.Age_pred, label='us', alpha=0.7, density=True)
+plt.xlabel('age [Gyr]')
+plt.ylabel('PDF')
+plt.legend()
+plt.show()
+quit()
+
+### Kiel diagram: Teff vs logg
+#plt.scatter(preds['teff'], preds['logg_aspcap'], s=10, label='LEGACY', color='purple')
+plt.scatter(training_rgb['aspcap_teff'], training_rgb['aspcap_logg'], s=10, label='training w/RGB', color='green')
+plt.scatter(legacy_bedell_apogee['teff'], legacy_bedell_apogee['logg'], s=10, label='LEGACY', color='purple')
+plt.scatter(training['aspcap_teff'], training['aspcap_logg'], s=10, label='training w/o RGB', color='pink')
+
+plt.xlabel(r"$T_{\rm eff}$ [K], ASPCAP")
+plt.ylabel('logg, ASPCAP')
+plt.gca().invert_yaxis()
+plt.gca().invert_xaxis()
+plt.legend()
+#plt.savefig(path+'plots/kiel.png')
 plt.show()

@@ -26,4 +26,7 @@ Here's the order of operations for reproducing our results and figures in Lam, B
 - chisq_training.py: compute spectra chisq for training sample. plot Figs 3 & 4 (LOOCV results, with and w/o old, alpha-poor stars) 
 - uncertainties_chisq.py: this has been repurposed several times. first it was used to identify 500 appropriate stars. that took a while. then to calculate chisq and sigmas for those 500 stars. that took a smaller while. 
 
-For the paper, after cannon-ages.ipynb, we run four_fold_cv.py to generate the first four sets of plots and the first two tables. 
+For the paper, after cannon-ages.ipynb, we run four_fold_cv.py to generate the first four sets of plots and the first two tables. We run mono-abundances.py to generate Fig 5 and then inference_kic.py to generate Fig 6. We run inference_legacy.py to generate Fig 8. 
+
+
+We started using matched sampling to craft the inference set to be identical to the training set in parameter space. This is done in comparison_no_rgb.py, producing inferences_df_matched.csv, which is then used in uncertainties_no_rgb.py to produce the uncertainties, as well as the KIC age inferences. Basically, comparison_no_rgb.py takes the place of inference_kic.py. 

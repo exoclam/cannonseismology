@@ -161,7 +161,7 @@ lite_df = pd.DataFrame({'sdss_id': lite_sdss_ids, 'snr': lite_snr})
 #hdul_lite.close()
 #print(lite.head())
 
-#"""
+"""
 # run one time to get only relevant columns from million-row ASPCAP fits file
 fits_image_filename_aspcap = path+'data/astraAllStarASPCAP-0.6.0.fits'
 hdul_aspcap = fits.open(fits_image_filename_aspcap)
@@ -185,7 +185,7 @@ aspcap_mg_hs = np.array(hdul_aspcap[2].data.mg_h).byteswap().newbyteorder()
 aspcap_e_mg_hs = np.array(hdul_aspcap[2].data.e_mg_h).byteswap().newbyteorder()
 aspcap_df = pd.DataFrame({'source_id': aspcap_source_ids, 'aspcap_source_id_dr2': aspcap_source_ids_dr2, 'aspcap_sdss_id': aspcap_sdss_ids, 'aspcap_visits': aspcap_visits, 'aspcap_teff': aspcap_teffs,
                            'aspcap_snr': aspcap_snr, 'aspcap_e_teff': aspcap_e_teffs, 'aspcap_logg': aspcap_loggs, 'aspcap_e_logg': aspcap_e_loggs, 'aspcap_fe_h': aspcap_fe_hs, 'aspcap_e_fe_h': aspcap_e_fe_hs,
-                           'aspcap_mg_h': aspcap_mg_hs, 'aspcap_e_mg_h': aspcap_e_mg_hs})
+                           'aspcap_mg_h': aspcap_mg_hs, 'aspcap_e_mg_h': aspcap_e_mg_hs, 'aspcap_vsini': aspcap_vsini, 'aspcap_e_vsini': aspcap_e_vsini, 'aspcap_vrad': aspcap_vrad, 'aspcap_e_vrad':aspcap_e_vrad})
 
 print(aspcap_df)
 preds_aspcap = pd.merge(preds, aspcap_df, on='source_id', how='left')
@@ -202,11 +202,12 @@ aspcap_lite_df = pd.merge(aspcap_df, lite_df, left_on='aspcap_sdss_id', right_on
 print(aspcap_lite_df)
 print(aspcap_lite_df[['sdss_id', 'snr', 'aspcap_snr']])
 
-aspcap_df.to_csv(path+'data/aspcap.csv', index=False)
+aspcap_df.to_csv(path+'data/aspcap_vsini.csv', index=False)
 
-#"""
-aspcap_df = pd.read_csv(path+'data/aspcap.csv')
-print(aspcap_df)
+"""
+aspcap_df = pd.read_csv(path+'data/aspcap_vsini.csv')
+aspcap_df = aspcap_df.dropna(subset=['aspcap_vsini', 'aspcap_e_vsini'])
+#print(aspcap_df)
 
 # read in gyrochronological ages 
 bouma = pd.read_csv(path+'data/bouma_gyro_ages.txt', sep='\s+')

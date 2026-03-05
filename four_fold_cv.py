@@ -16,11 +16,11 @@ import loocv
 import matplotlib
 import matplotlib.pylab as pylab
 matplotlib.rcParams.update({'errorbar.capsize': 1})
-pylab_params = {'legend.fontsize': 'large',
-		 'axes.labelsize': 'x-large',
-		 'axes.titlesize':'x-large',
-		 'xtick.labelsize':'large',
-		 'ytick.labelsize':'large'}
+pylab_params = {'legend.fontsize': 'x-large',
+		 'axes.labelsize': 'xx-large',
+		 'axes.titlesize':'xx-large',
+		 'xtick.labelsize':'x-large',
+		 'ytick.labelsize':'x-large'}
 pylab.rcParams.update(pylab_params)
 
 path = '/Users/chrislam/Desktop/cannon-ages/' 
@@ -44,6 +44,9 @@ df = df[df.feh.notnull()]
 df = df[df.logg.notnull()]
 df = df[df.Dnu.notnull()]
 df = df[df.numax.notnull()]
+
+rgb_df = df.loc[(df['logg']<3.8) & (df['Teff']<5250)]
+print(rgb_df)
 
 # get rid of SB2s (and one SB3), vetted by manual inspection after an initial round of CV showed some anomalously high chisq
 bad_sdss_ids = [67660379, 67478208, 67161877, 67225129, 67114365]
@@ -94,7 +97,6 @@ label_names = ['Teff', 'logg', 'feh', 'mg_h', 'Age', 'Dnu'] # 'numax'
 training_names = df['sdss_id'].astype(str)
 directory = path+'data/spectra/' # e.g., mwmStar-0.6.0-114879184.fits
 spectra_paths = get_files_in_order(directory, training_names)
-
 fluxes = np.genfromtxt(path+'data/fluxes_norm_no_rgb.txt', delimiter=',')#[:,:-1]
 ivars = np.genfromtxt(path+'data/ivars_norm_no_rgb.txt', delimiter=',')#[:,:-1]
 
@@ -263,6 +265,18 @@ print("DoF: ", reduced_chisq_modifier)
 #plt.tight_layout()
 #plt.show()
 
+# introduce LEGACY sample to put everything relevant in the same plot
+legacy = pd.read_csv(path+'data/silva-aguirre-legacy.txt',sep='\s+')
+bedell = Table.read('/Users/chrislam/Desktop/psps/data/kepler_dr3_good.fits')
+bedell_df = bedell.to_pandas()
+legacy_bedell = pd.merge(legacy, bedell_df, left_on='KIC', right_on='kepid', how='left')
+fits_image_filename_lite = path+'data/astraMWMLite-0.6.0.fits'
+hdul_lite = fits.open(fits_image_filename_lite)  
+lite_source_ids = hdul_lite[1].data.gaia_dr3_source_id
+
+# use DR3 source_id to get sdss_id from mwmLite
+legacy_bedell_apogee = legacy_bedell.loc[legacy_bedell['source_id'].isin(lite_source_ids)]
+
 #"""
 ### Kiel diagram: Teff vs logg
 #plt.scatter(nataf_aspcap_cull['aspcap_teff'], nataf_aspcap_cull['aspcap_logg'], s=5, alpha=0.5, label='Nataf+24', color='pink')
@@ -274,12 +288,14 @@ print("DoF: ", reduced_chisq_modifier)
 plt.scatter(preds['Teff'], preds['logg'], alpha=0.7, c='black', label='final training sample')
 plt.scatter(bad_df['Teff'], bad_df['logg'], alpha=0.7, c='red', label='SB2s and SB3')
 plt.scatter(worst['Teff'], worst['logg'], alpha=0.7, marker='d', c='red', label='bad normalization')
-plt.scatter(rgb_df['Teff'], rgb_df['logg'], alpha=0.7, c='pink', label='RGB base')
+#plt.scatter(rgb_df['Teff'], rgb_df['logg'], alpha=0.7, c='pink', label='RGB base')
+plt.scatter(legacy_bedell_apogee['teff'], legacy_bedell_apogee['logg'], alpha=0.7, label='Silva Aguirre+17', color='purple')
 plt.xlabel(r"$T_{\rm eff}$ [K], ASPCAP")
 plt.ylabel('logg, ASPCAP')
 plt.gca().invert_yaxis()
 plt.gca().invert_xaxis()
-plt.legend()
+#plt.legend(fontsize='medium')
+plt.legend(loc='upper left', bbox_to_anchor=(0.02, 1.0), fontsize='medium')
 #cbar = plt.colorbar(im, cmap='viridis', label=r'Cannon model reduced $\chi^2$ fit')
 plt.tight_layout()
 plt.savefig(path+'plots/kiel_our_sample_only.png')
@@ -342,6 +358,7 @@ print(preds.loc[preds['chisq']>30000][['KIC','Teff','logg','chisq']])
 #plt.show()
 #quit()
 
+
 # there's one more bad continuum normalization star: KIC 10454113
 preds = preds.loc[preds['KIC']!=10454113]
 modifier = '_no_rgb'
@@ -351,174 +368,253 @@ print("vmax: ", vmax)
 print("final: ", preds)
 #print(preds.loc[preds['KIC']==10070754][['aspcap_snr']]) # snr=223
 
-im = plt.scatter(preds['Teff'], preds['Teff_pred'], alpha=0.7, c=preds['chisq']/reduced_chisq_modifier, vmax=max(preds['chisq'])/reduced_chisq_modifier)
+### keep only young, alpha-rich stars
+preds['mg_fe'] = preds['mg_h'] - preds['feh']
+print(preds['mg_fe'])
+preds_young_alpha_rich = preds.loc[(preds['Age'] <= 6) & (preds['mg_fe'] >= 0.1)]
+print(preds_young_alpha_rich)
+
 min_teff = np.min(pd.concat([preds['Teff'], preds['Teff_pred']]))
 max_teff = np.max(pd.concat([preds['Teff'], preds['Teff_pred']]))
-plt.plot([min_teff,max_teff], [min_teff,max_teff])
+plt.plot([min_teff,max_teff], [min_teff,max_teff], color='k', zorder=1)
+im = plt.scatter(preds['Teff'], preds['Teff_pred'], alpha=0.7, c=preds['chisq']/reduced_chisq_modifier, vmax=max(preds['chisq'])/reduced_chisq_modifier, zorder=2)
+im = plt.scatter(preds_young_alpha_rich['Teff'], preds_young_alpha_rich['Teff_pred'], facecolors='none', edgecolors='magenta', linewidths=2, zorder=2)
 plt.ylabel(r"$T_{\rm eff}$ [K], Cannon, CV")
 plt.xlabel(r"$T_{\rm eff}$ [K], ASPCAP")
 #plt.xlim([min_teff, max_teff])
 #plt.ylim([min_teff, max_teff])
-cbar = plt.colorbar(im, cmap='viridis', label=r'Cannon model reduced $\chi^2$ fit')
+cbar = plt.colorbar(im, cmap='viridis', label=r'Cannon $\chi_{red}^2$')
 plt.tight_layout()
-plt.savefig(path+'plots/4_fold_cv_teff'+modifier+'.png')
+plt.savefig(path+'plots/cv/4_fold_cv_teff'+modifier+'.png')
 plt.show()
 
-im = plt.scatter(preds['logg'], preds['logg_pred'], alpha=0.7, c=preds['chisq']/reduced_chisq_modifier, vmax=max(preds['chisq'])/reduced_chisq_modifier)
 min_logg = np.min(pd.concat([preds['logg'], preds['logg_pred']]))
 max_logg = np.max(pd.concat([preds['logg'], preds['logg_pred']]))
-plt.plot([min_logg,max_logg], [min_logg,max_logg])
+plt.plot([min_logg,max_logg], [min_logg,max_logg], color='k', zorder=1)
+im = plt.scatter(preds['logg'], preds['logg_pred'], alpha=0.7, c=preds['chisq']/reduced_chisq_modifier, vmax=max(preds['chisq'])/reduced_chisq_modifier, zorder=2)
+im = plt.scatter(preds_young_alpha_rich['logg'], preds_young_alpha_rich['logg_pred'], facecolors='none', edgecolors='magenta', linewidths=2, zorder=2)
 plt.ylabel(r"logg, Cannon, CV")
 plt.xlabel(r"logg, ASPCAP")
-cbar = plt.colorbar(im, cmap='viridis', label=r'Cannon model reduced $\chi^2$ fit')
+cbar = plt.colorbar(im, cmap='viridis', label=r'Cannon $\chi_{red}^2$')
 plt.tight_layout()
-plt.savefig(path+'plots/4_fold_cv_logg'+ modifier +'.png')
+plt.savefig(path+'plots/cv/4_fold_cv_logg'+ modifier +'.png')
 plt.show()
 
-im = plt.scatter(preds['feh'], preds['fe_h_pred'], alpha=0.7, c=preds['chisq']/reduced_chisq_modifier, vmax=max(preds['chisq'])/reduced_chisq_modifier)
 min_feh = np.min(pd.concat([preds['feh'], preds['fe_h_pred']]))
 max_feh = np.max(pd.concat([preds['feh'], preds['fe_h_pred']]))
-plt.plot([min_feh,max_feh], [min_feh,max_feh])
+plt.plot([min_feh,max_feh], [min_feh,max_feh], color='k', zorder=1)
+im = plt.scatter(preds['feh'], preds['fe_h_pred'], alpha=0.7, c=preds['chisq']/reduced_chisq_modifier, vmax=max(preds['chisq'])/reduced_chisq_modifier, zorder=2)
+im = plt.scatter(preds_young_alpha_rich['feh'], preds_young_alpha_rich['fe_h_pred'], facecolors='none', edgecolors='magenta', linewidths=2, zorder=2)
 plt.ylabel(r"[Fe/H], Cannon, CV")
 plt.xlabel(r"[Fe/H], ASPCAP")
-cbar = plt.colorbar(im, cmap='viridis', label=r'Cannon model reduced $\chi^2$ fit')
+cbar = plt.colorbar(im, cmap='viridis', label=r'Cannon $\chi_{red}^2$')
 plt.tight_layout()
-plt.savefig(path+'plots/4_fold_cv_fe_h'+modifier+'.png')
+plt.savefig(path+'plots/cv/4_fold_cv_fe_h'+modifier+'.png')
 plt.show()
 
-im = plt.scatter(preds['mg_h'], preds['mg_h_pred'], alpha=0.7, c=preds['chisq']/reduced_chisq_modifier, vmax=max(preds['chisq'])/reduced_chisq_modifier)
 min_mg_h = np.min(pd.concat([preds['mg_h'], preds['mg_h_pred']]))
 max_mg_h = np.max(pd.concat([preds['mg_h'], preds['mg_h_pred']]))
-plt.plot([min_mg_h,max_mg_h], [min_mg_h,max_mg_h])
+plt.plot([min_mg_h,max_mg_h], [min_mg_h,max_mg_h], color='k', zorder=1)
+im = plt.scatter(preds['mg_h'], preds['mg_h_pred'], alpha=0.7, c=preds['chisq']/reduced_chisq_modifier, vmax=max(preds['chisq'])/reduced_chisq_modifier, zorder=2)
+im = plt.scatter(preds_young_alpha_rich['mg_h'], preds_young_alpha_rich['mg_h_pred'], facecolors='none', edgecolors='magenta', linewidths=2, zorder=2)
 plt.ylabel(r"[Mg/H], Cannon, CV")
 plt.xlabel(r"[Mg/H], ASPCAP")
-cbar = plt.colorbar(im, cmap='viridis', label=r'Cannon model reduced $\chi^2$ fit')
+cbar = plt.colorbar(im, cmap='viridis', label=r'Cannon $\chi_{red}^2$')
 plt.tight_layout()
-plt.savefig(path+'plots/4_fold_cv_mg_h'+modifier+'.png')
+plt.savefig(path+'plots/cv/4_fold_cv_mg_h'+modifier+'.png')
 plt.show()
 
-im = plt.scatter(preds['Age'], preds['Age_pred'], alpha=0.7, c=preds['chisq']/reduced_chisq_modifier, vmax=max(preds['chisq'])/reduced_chisq_modifier)
 min_Age = np.min(pd.concat([preds['Age'], preds['Age_pred']]))
 max_Age = np.max(pd.concat([preds['Age'], preds['Age_pred']]))
-plt.plot([min_Age,max_Age], [min_Age,max_Age])
+plt.plot([min_Age,max_Age], [min_Age,max_Age], color='k', zorder=1)
+im = plt.scatter(preds['Age'], preds['Age_pred'], alpha=0.7, c=preds['chisq']/reduced_chisq_modifier, vmax=max(preds['chisq'])/reduced_chisq_modifier, zorder=2)
+im = plt.scatter(preds_young_alpha_rich['Age'], preds_young_alpha_rich['Age_pred'], facecolors='none', edgecolors='magenta', linewidths=2, zorder=2)
 plt.ylabel(r"Age [Gyr], Cannon, CV")
 plt.xlabel(r"Age [Gyr], ASPCAP")
-cbar = plt.colorbar(im, cmap='viridis', label=r'Cannon model reduced $\chi^2$ fit')
+cbar = plt.colorbar(im, cmap='viridis', label=r'Cannon $\chi_{red}^2$')
 plt.tight_layout()
-plt.savefig(path+'plots/4_fold_cv_Age'+modifier+'.png')
+plt.savefig(path+'plots/cv/4_fold_cv_Age'+modifier+'.png')
 plt.show()
 
-im = plt.scatter(preds['Dnu'], preds['Dnu_pred'], alpha=0.7, c=preds['chisq']/reduced_chisq_modifier, vmax=max(preds['chisq'])/reduced_chisq_modifier)
 min_Dnu = np.min(pd.concat([preds['Dnu'], preds['Dnu_pred']]))
 max_Dnu = np.max(pd.concat([preds['Dnu'], preds['Dnu_pred']]))
-plt.plot([min_Dnu,max_Dnu], [min_Dnu,max_Dnu])
+plt.plot([min_Dnu,max_Dnu], [min_Dnu,max_Dnu], color='k', zorder=1)
+im = plt.scatter(preds['Dnu'], preds['Dnu_pred'], alpha=0.7, c=preds['chisq']/reduced_chisq_modifier, vmax=max(preds['chisq'])/reduced_chisq_modifier, zorder=2)
+im = plt.scatter(preds_young_alpha_rich['Dnu'], preds_young_alpha_rich['Dnu_pred'], facecolors='none', edgecolors='magenta', linewidths=2, zorder=2)
 plt.ylabel(r'$\Delta \nu [\mu Hz]$, Cannon, CV')
 plt.xlabel(r'$\Delta \nu [\mu Hz]$, ASPCAP')
-cbar = plt.colorbar(im, cmap='viridis', label=r'Cannon model reduced $\chi^2$ fit')
+cbar = plt.colorbar(im, cmap='viridis', label=r'Cannon $\chi_{red}^2$')
 plt.tight_layout()
-plt.savefig(path+'plots/4_fold_cv_Dnu'+modifier+'.png')
+plt.savefig(path+'plots/cv/4_fold_cv_Dnu'+modifier+'.png')
 plt.show()
-
-#"""
+quit()
+"""
 ### plot label space distributions
 plt.hist(preds['Teff'],color='k')
 plt.xlabel(r"ASPCAP $T_{\rm eff}$ [K]")
+plt.tight_layout()
 plt.savefig(path+'plots/teff'+modifier+'.png')
 plt.show()
 
 plt.hist(preds['logg'],color='k')
 plt.xlabel(r"ASPCAP logg")
+plt.tight_layout()
 plt.savefig(path+'plots/logg'+modifier+'.png')
 plt.show()
 
 plt.hist(preds['fe_h'],color='k')
 plt.xlabel(r"ASPCAP [Fe/H]")
+plt.tight_layout()
 plt.savefig(path+'plots/fe_h'+modifier+'.png')
 plt.show()
 
 plt.hist(preds['mg_h'],color='k')
 plt.xlabel(r"ASPCAP [Mg/H]")
+plt.tight_layout()
 plt.savefig(path+'plots/mg_h'+modifier+'.png')
 plt.show()
 
 plt.hist(preds['Age'],color='k')
 plt.xlabel(r"S17 Age [Gyr]")
+plt.tight_layout()
 plt.savefig(path+'plots/age'+modifier+'.png')
 plt.show()
 
 plt.hist(preds['Dnu'],color='k')
 plt.xlabel(r'S17 $\Delta \nu [\mu Hz]$')
+plt.tight_layout()
 plt.savefig(path+'plots/Dnu'+modifier+'.png')
 plt.show()
-#"""
+"""
 
 ### keep only young, alpha-rich stars
-preds_young_alpha_rich = preds.loc[(preds['Age'] <= 5) & (preds['mg_h'] >= 0.1)]
+preds['mg_fe'] = preds['mg_h'] - preds['feh']
+print(preds['mg_fe'])
+preds_young_alpha_rich = preds.loc[(preds['Age'] <= 6) & (preds['mg_fe'] >= 0.1)]
+print(preds_young_alpha_rich)
 
-im = plt.scatter(preds_young_alpha_rich['Teff_pred'], preds_young_alpha_rich['Teff'], alpha=0.7, c=preds_young_alpha_rich['chisq']/reduced_chisq_modifier, vmax=max(preds['chisq'])/reduced_chisq_modifier)
+#preds_young_alpha_rich = preds.loc[(preds['Age'] <= 1) & (preds['mg_fe'] >= 0.2)]
+#print(preds_young_alpha_rich)
+#quit()
+
+print(preds_young_alpha_rich.loc[preds_young_alpha_rich['mg_h']<-0.4][['KIC','feh','mg_h','mg_fe']])
+
+plt.plot([min_teff,max_teff], [min_teff,max_teff], color='k', zorder=1)
+im = plt.scatter(preds_young_alpha_rich['Teff'], preds_young_alpha_rich['Teff_pred'], alpha=0.7, c=preds_young_alpha_rich['chisq']/reduced_chisq_modifier, vmax=max(preds['chisq'])/reduced_chisq_modifier, zorder=2)
 #min_teff = np.min(pd.concat([preds_young_alpha_rich['Teff'], preds_young_alpha_rich['Teff_pred']]))
 #max_teff = np.max(pd.concat([preds_young_alpha_rich['Teff'], preds_young_alpha_rich['Teff_pred']]))
-plt.plot([min_teff,max_teff], [min_teff,max_teff])
-plt.xlabel(r"$T_{\rm eff}$ [K], Cannon, CV")
-plt.ylabel(r"$T_{\rm eff}$ [K], ASPCAP")
+plt.ylabel(r"$T_{\rm eff}$ [K], Cannon, CV")
+plt.xlabel(r"$T_{\rm eff}$ [K], ASPCAP")
 #plt.xlim([min_teff, max_teff])
 #plt.ylim([min_teff, max_teff])
-cbar = plt.colorbar(im, cmap='viridis', label=r'Cannon model $\chi^2$ fit')
+cbar = plt.colorbar(im, cmap='viridis', label=r'Cannon $\chi_{red}^2$')
 plt.tight_layout()
-plt.savefig(path+'plots/4_fold_cv_teff_young_alpha_rich'+modifier+'.png')
+plt.savefig(path+'plots/cv/4_fold_cv_teff_young_alpha_rich'+modifier+'.png')
 plt.show()
 
-im = plt.scatter(preds_young_alpha_rich['logg_pred'], preds_young_alpha_rich['logg'], alpha=0.7, c=preds_young_alpha_rich['chisq']/reduced_chisq_modifier, vmax=max(preds['chisq'])/reduced_chisq_modifier)
+plt.plot([min_logg,max_logg], [min_logg,max_logg], color='k', zorder=1)
+im = plt.scatter(preds_young_alpha_rich['logg'], preds_young_alpha_rich['logg_pred'], alpha=0.7, c=preds_young_alpha_rich['chisq']/reduced_chisq_modifier, vmax=max(preds['chisq'])/reduced_chisq_modifier, zorder=2)
 #min_logg = np.min(pd.concat([preds_young_alpha_rich['logg'], preds_young_alpha_rich['logg_pred']]))
 #max_logg = np.max(pd.concat([preds_young_alpha_rich['logg'], preds_young_alpha_rich['logg_pred']]))
-plt.plot([min_logg,max_logg], [min_logg,max_logg])
-plt.xlabel(r"logg, Cannon, CV")
-plt.ylabel(r"logg, ASPCAP")
-cbar = plt.colorbar(im, cmap='viridis', label=r'Cannon model $\chi^2$ fit')
+plt.ylabel(r"logg, Cannon, CV")
+plt.xlabel(r"logg, ASPCAP")
+cbar = plt.colorbar(im, cmap='viridis', label=r'Cannon $\chi_{red}^2$')
 plt.tight_layout()
-plt.savefig(path+'plots/4_fold_cv_logg_young_alpha_rich'+modifier+'.png')
+plt.savefig(path+'plots/cv/4_fold_cv_logg_young_alpha_rich'+modifier+'.png')
 plt.show()
 
-im = plt.scatter(preds_young_alpha_rich['fe_h_pred'], preds_young_alpha_rich['feh'], alpha=0.7, c=preds_young_alpha_rich['chisq']/reduced_chisq_modifier, vmax=max(preds['chisq'])/reduced_chisq_modifier)
+plt.plot([min_feh,max_feh], [min_feh,max_feh], color='k', zorder=1)
+im = plt.scatter(preds_young_alpha_rich['fe_h'], preds_young_alpha_rich['fe_h_pred'], alpha=0.7, c=preds_young_alpha_rich['chisq']/reduced_chisq_modifier, vmax=max(preds['chisq'])/reduced_chisq_modifier, zorder=2)
 #min_feh = np.min(pd.concat([preds_young_alpha_rich['feh'], preds_young_alpha_rich['fe_h_pred']]))
 #max_feh = np.max(pd.concat([preds_young_alpha_rich['feh'], preds_young_alpha_rich['fe_h_pred']]))
-plt.plot([min_feh,max_feh], [min_feh,max_feh])
-plt.xlabel(r"[Fe/H], Cannon, CV")
-plt.ylabel(r"[Fe/H], ASPCAP")
-cbar = plt.colorbar(im, cmap='viridis', label=r'Cannon model $\chi^2$ fit')
+plt.ylabel(r"[Fe/H], Cannon, CV")
+plt.xlabel(r"[Fe/H], ASPCAP")
+cbar = plt.colorbar(im, cmap='viridis', label=r'Cannon $\chi_{red}^2$')
 plt.tight_layout()
-plt.savefig(path+'plots/4_fold_cv_fe_h_young_alpha_rich'+modifier+'.png')
+plt.savefig(path+'plots/cv/4_fold_cv_fe_h_young_alpha_rich'+modifier+'.png')
 plt.show()
 
-im = plt.scatter(preds_young_alpha_rich['mg_h_pred'], preds_young_alpha_rich['mg_h'], alpha=0.7, c=preds_young_alpha_rich['chisq']/reduced_chisq_modifier, vmax=max(preds['chisq'])/reduced_chisq_modifier)
+plt.plot([min_mg_h,max_mg_h], [min_mg_h,max_mg_h], color='k', zorder=1)
+im = plt.scatter(preds_young_alpha_rich['mg_h'], preds_young_alpha_rich['mg_h_pred'], alpha=0.7, c=preds_young_alpha_rich['chisq']/reduced_chisq_modifier, vmax=max(preds['chisq'])/reduced_chisq_modifier, zorder=2)
 #min_mg_h = np.min(pd.concat([preds_young_alpha_rich['mg_h'], preds_young_alpha_rich['mg_h_pred']]))
 #max_mg_h = np.max(pd.concat([preds_young_alpha_rich['mg_h'], preds_young_alpha_rich['mg_h_pred']]))
-plt.plot([min_mg_h,max_mg_h], [min_mg_h,max_mg_h])
-plt.xlabel(r"[Mg/H], Cannon, CV")
-plt.ylabel(r"[Mg/H], ASPCAP")
-cbar = plt.colorbar(im, cmap='viridis', label=r'Cannon model $\chi^2$ fit')
+plt.ylabel(r"[Mg/H], Cannon, CV")
+plt.xlabel(r"[Mg/H], ASPCAP")
+cbar = plt.colorbar(im, cmap='viridis', label=r'Cannon $\chi_{red}^2$')
 plt.tight_layout()
-plt.savefig(path+'plots/4_fold_cv_mg_h_young_alpha_rich'+modifier+'.png')
+plt.savefig(path+'plots/cv/4_fold_cv_mg_h_young_alpha_rich'+modifier+'.png')
 plt.show()
 
-im = plt.scatter(preds_young_alpha_rich['Age_pred'], preds_young_alpha_rich['Age'], alpha=0.7, c=preds_young_alpha_rich['chisq']/reduced_chisq_modifier, vmax=max(preds['chisq'])/reduced_chisq_modifier)
+plt.plot([min_Age,max_Age], [min_Age,max_Age], color='k', zorder=1)
+im = plt.scatter(preds_young_alpha_rich['Age'], preds_young_alpha_rich['Age_pred'], alpha=0.7, c=preds_young_alpha_rich['chisq']/reduced_chisq_modifier, vmax=max(preds['chisq'])/reduced_chisq_modifier, zorder=2)
 #min_Age = np.min(pd.concat([preds_young_alpha_rich['Age'], preds_young_alpha_rich['Age_pred']]))
 #max_Age = np.max(pd.concat([preds_young_alpha_rich['Age'], preds_young_alpha_rich['Age_pred']]))
-plt.plot([min_Age,max_Age], [min_Age,max_Age])
-plt.xlabel(r"Age [Gyr], Cannon, CV")
-plt.ylabel(r"Age [Gyr], ASPCAP")
-cbar = plt.colorbar(im, cmap='viridis', label=r'Cannon model $\chi^2$ fit')
+plt.ylabel(r"Age [Gyr], Cannon, CV")
+plt.xlabel(r"Age [Gyr], ASPCAP")
+cbar = plt.colorbar(im, cmap='viridis', label=r'Cannon $\chi_{red}^2$')
 plt.tight_layout()
-plt.savefig(path+'plots/4_fold_cv_Age_young_alpha_rich'+modifier+'.png')
+plt.savefig(path+'plots/cv/4_fold_cv_Age_young_alpha_rich'+modifier+'.png')
 plt.show()
 
-im = plt.scatter(preds_young_alpha_rich['Dnu_pred'], preds_young_alpha_rich['Dnu'], alpha=0.7, c=preds_young_alpha_rich['chisq']/reduced_chisq_modifier, vmax=max(preds['chisq'])/reduced_chisq_modifier)
+plt.plot([min_Dnu,max_Dnu], [min_Dnu,max_Dnu], color='k', zorder=1)
+im = plt.scatter(preds_young_alpha_rich['Dnu'], preds_young_alpha_rich['Dnu_pred'], alpha=0.7, c=preds_young_alpha_rich['chisq']/reduced_chisq_modifier, vmax=max(preds['chisq'])/reduced_chisq_modifier, zorder=2)
 #min_Dnu = np.min(pd.concat([preds_young_alpha_rich['Dnu'], preds_young_alpha_rich['Dnu_pred']]))
 #max_Dnu = np.max(pd.concat([preds_young_alpha_rich['Dnu'], preds_young_alpha_rich['Dnu_pred']]))
-plt.plot([min_Dnu,max_Dnu], [min_Dnu,max_Dnu])
-plt.xlabel(r'$\Delta \nu [\mu Hz]$, Cannon, CV')
-plt.ylabel(r'$\Delta \nu [\mu Hz]$, ASPCAP')
-cbar = plt.colorbar(im, cmap='viridis', label=r'Cannon model $\chi^2$ fit')
+plt.ylabel(r'$\Delta \nu [\mu Hz]$, Cannon, CV')
+plt.xlabel(r'$\Delta \nu [\mu Hz]$, ASPCAP')
+cbar = plt.colorbar(im, cmap='viridis', label=r'Cannon $\chi_{red}^2$')
 plt.tight_layout()
-plt.savefig(path+'plots/4_fold_cv_Dnu_young_alpha_rich'+modifier+'.png')
+plt.savefig(path+'plots/cv/4_fold_cv_Dnu_young_alpha_rich'+modifier+'.png')
 plt.show()
+
+
+### mono abundances
+modifier = '_no_rgb'
+def plot_mono(training_sub, lower, upper, xerr=0, yerr=0):
+    """util function for plotting mono abundance age relation
+
+    Args:
+        training_sub (Pandas DF): training sample, selected for the mono-abundance
+        lower (float): lower abundance
+        upper (float): upper abundance
+    """
+
+    plt.axis('square')
+    im = plt.errorbar(training_sub['Age'], training_sub['Age_pred'], xerr=xerr, yerr=yerr, c='k', linestyle='', fmt='o') # training_sub['chisq']
+    plt.plot([min_Age,max_Age], [min_Age,max_Age])
+    plt.xlabel('APOKASC age [Gyr]')
+    plt.ylabel('Cannon age [Gyr]')
+    plt.xlim([0, 14])
+    plt.ylim([0, 14])
+    #plt.legend(bbox_to_anchor=(1., 1.05))
+    plt.text(0.5, 13., f'{np.round(lower,1)} <= [Mg/Fe] < {np.round(upper,1)}: {len(training_sub)} stars', fontsize=15)
+    #cbar = plt.colorbar(im, cmap='viridis', label=r'Cannon model $\chi^2$ fit')
+    plt.tight_layout()
+    if lower<0:
+        plt.savefig(path+f'plots/cv/cv_mg_fe_mono_abundance_negative_{10*np.round(np.abs(lower),1)}'+modifier+'.png', format='png', bbox_inches='tight')
+    else:
+        plt.savefig(path+f'plots/cv/cv_mg_fe_mono_abundance_{10*np.round(lower,1)}'+modifier+'.png', format='png', bbox_inches='tight')
+    plt.show()
+
+    return
+
+lowers = np.linspace(-1, 3, 9) # mg/fe
+for lower in lowers:
+    #upper = lower+0.1 # fe/h
+    upper = lower+0.5 # mg/fe
+
+    #if lower == 0.4: # fe/h
+    if lower == 3: # mg/fe
+        break
+    else:
+        #training_sub = training.loc[(training['fe_h_test'] >= lower) & (training['fe_h_test'] < upper)]
+        training_sub = preds.loc[(preds['mg_fe'] >= lower) & (preds['mg_fe'] < upper)]
+
+    #training_sub = pd.merge(training_sub, serenelli, left_on='kepid', right_on='KIC', how='inner')
+    #print(list(training_sub.columns))
+    #quit()
+    #training_sub['Age'] = training_sub['Age_x']
+    xerr = [training_sub['E_Age'], np.abs(training_sub['e_Age'])]
+    #print(len(training_sub))
+    #plt.hist2d(training_sub['Age_test'], training_sub['Age_pred'])
+    plot_mono(training_sub, lower, upper, xerr)
