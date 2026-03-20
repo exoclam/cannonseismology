@@ -1,32 +1,23 @@
 ### Cannonseismology
 
-Train The Cannon on stars with asteroseismic ages to infer more precise ages for other Kepler (and, eventually, PLATO) stars.
-
-- for_aida.py: aka main; this is where I run loocv.py and train The Cannon; this is also where I will run inference on KIC and PIC
-- plot_for_aida.py: after reading out results from HiPerGator (HPG), make plots here
-- loocv.py: find loocv.py() here
-- cannon-ages.ipynb: the original notebook, where I do my mise en place (prepping and crossmatching Serenelli, Bedell, APOKASC, etc); see build_training_set.py for minimum viable product 
-- process_spectra_gaus.py: utils from Aida Behmard, eg. to continuum normalize and otherwise process spectra
-- get_spectra.py: functions for building inference set and then querying inference spectra from this APOGEE-KIC crossmatch
-- build_training_set.py: streamlined, barebones script to do the main job of cannon-ages.ipynb w/o all the checks and plots
-- train_serenelli.py: small test script for troubleshooting LOOCV and model training on a smaller subset of stars
-- comparisons.py: compare predicted Cannon ages with gyrochronology, isochrone, etc ages for those same stars
-- uncertainties.py: calculate per-star errorbars
-- inference_kic.py: conduct inference using the trained model on KIC-APOGEE stars in the training label space
-- chisq_training.py: calculate spectra chisq for training sample. 
+Train The Cannon on stars with asteroseismic ages to infer more precise ages for a much larger sample of Kepler (and, eventually, PLATO) dwarfs with APOGEE spectra.
 
 Here's the order of operations for reproducing our results and figures in Lam, Behmard, et al., in prep. 
-- cannon-ages.ipynb: prep training sample.
+- cannon-ages.ipynb: explore the training set and their APOGEE spectra. More of a learning document than anything else.
 - crossmatch.ipynb: enrich with RUWE to omit binaries
-- for_aida.py: I never changed this file's name and now it's too late lol. train model. output LOOCV predictions and s2 scatter array. 
-- plot_for_aida.py: plot Fig 1 (label space histograms)
-- inference_kic.py: infer ages for KIC-APOGEE-label space cross match. 
-- inference_legacy.py: infer ages for the Silva Aguirre+17 APOKASC Legacy sample.
-- mono_abundances.py: 
-- chisq_training.py: compute spectra chisq for training sample. plot Figs 3 & 4 (LOOCV results, with and w/o old, alpha-poor stars) 
-- uncertainties_chisq.py: this has been repurposed several times. first it was used to identify 500 appropriate stars. that took a while. then to calculate chisq and sigmas for those 500 stars. that took a smaller while. 
+- four_fold_cv.py: do 4-fold cross-validation. Also plot results in Fig 1, including young, alpha-rich pink circles.
+- mono_abundances.py: do mono-abundance test (Fig 2)
+- silver_and_gold.ipynb: select gold and silver inference samples from Kepler-APOGEE cross-match
+- training.py: actually train the final model on inference sample
+- uncertainties_no_rgb.py: identify 500 appropriate stars with 2 visits and SNR between 200 and 600 (see Behmard+25a). Then calculate chisq and sigma_inflates for each label per star.  
+- inference_kic.py: infer ages using trained Cannon model. Enrich inference dataset with columns for label errors, using sigma_inflates from previous step and each star's model uncertainty. Compare with LEGACY. 
 
-For the paper, after cannon-ages.ipynb, we run four_fold_cv.py to generate the first four sets of plots and the first two tables. We run mono-abundances.py to generate Fig 5 and then inference_kic.py to generate Fig 6. We run inference_legacy.py to generate Fig 8. 
+Other potentially relevant files:
+- process_spectra_gaus.py: helper functions for continuum normalization and chisq calculations here, courtesy of Aida Behmard
+- for_aida.py: previous main file, in which I re-purposed Aida Behmard's code used for Behmard+25a for this project. 
 
+Computation time: all codes can be run on a laptop on ~hour timescales except for two steps:
+- Initial cross-match of training and inference Kepler-APOGEE samples and querying of APOGEE spectra (~1 day on 8 cores).
+- SDSS MWM search for APOGEE spectra of 500 Kepler stars that fulfill our chisq sigma_inflate caclulation requirements (~2 days on 8 cores). 
+These were done on UF's HiPerGator via array jobs.
 
-We started using matched sampling to craft the inference set to be identical to the training set in parameter space. This is done in comparison_no_rgb.py, producing inferences_df_matched.csv, which is then used in uncertainties_no_rgb.py to produce the uncertainties, as well as the KIC age inferences. Basically, comparison_no_rgb.py takes the place of inference_kic.py. 

@@ -177,8 +177,8 @@ preds.to_csv(path+'data/inferences_legacy_no_rgb.csv', index=False)
 quit()
 """
 
-preds = pd.read_csv(path+'data/inferences_legacy_no_rgb.csv',sep=',') # inferences_silva_aguirre_ruwe.csv, inferences_legacy_ruwe.csv
-print(list(preds.columns))
+preds = pd.read_csv(path+'data/silver_inferences_kic_no_rgb.csv',sep=',') # inferences_legacy_no_rgb.csv, inferences_silva_aguirre_ruwe.csv, inferences_legacy_ruwe.csv
+#print(list(preds.columns))
 
 cannon_preds = pd.read_csv(path+'data/enriched_lite_visits_chisq.csv', sep=',')
 print(cannon_preds)
@@ -222,6 +222,7 @@ training_rgb = pd.read_csv(path+'data/4_fold_cv.csv')
 print(len(training_rgb))
 
 legacy = pd.read_csv(path+'data/silva-aguirre-legacy.txt',sep='\s+')
+print("size of LEGACY: ", len(legacy))
 bedell = Table.read('/Users/chrislam/Desktop/psps/data/kepler_dr3_good.fits')
 bedell_df = bedell.to_pandas()
 legacy_bedell = pd.merge(legacy, bedell_df, left_on='KIC', right_on='kepid', how='left')

@@ -150,7 +150,7 @@ quit()
 # sigma_inflate_fe_h = 0.027 (-1.565 dex --> 0.005, -0.087, 0.999)
 # sigma_inflate_mg_h = 0.026 (-1.586 dex --> -0.037, -0.101 1.000)
 # sigma_inflate_age = 0.417 (-0.380 dex --> -0.008, -0.045, 0.998)
-# sigma_inflate_Dnu = 0.751 (5.637 dex --> -0.005, 0.038, 1.000)
+# sigma_inflate_Dnu = 5.637 (0.751 dex --> -0.005, 0.038, 1.000)
 
 """
 ### look back in astraMWMLite to get number of APOGEE visits per star

@@ -38,7 +38,8 @@ print(inferences_latex)
 
 print(silver_inferences_kic)
 print(silver_inferences_kic.loc[silver_inferences_kic['chisq']>100000])
-quit()
+print(list(silver_inferences_kic.columns))
+silver_inferences_kic = silver_inferences_kic.loc[silver_inferences_kic['chisq']<100000]
 
 # sigma_inflate_teff = 31.0 K (1.491 dex --> -0.014, -0.038, 1.000) (10**sigma_inflate --> median, mean, std)
 # sigma_inflate_logg = 0.043 (-1.371 dex --> -0.000, -0.013, 1.000)
@@ -67,6 +68,7 @@ silver_inferences_kic["Dnu"] = silver_inferences_kic.apply(
     lambda row: f"{row['Dnu_pred']:.2f} \\pm {row['Dnu_err']:.2f}", axis=1)
 silver_inferences_kic['chisq_reduced'] = silver_inferences_kic['chisq']/(7409 - 6) # 7409 discrete wavelenghts in each spectra; 6 parameters
 #silver_inferences_kic['chisq_reduced'] = np.round(silver_inferences_kic['chisq_reduced'], 2)
+print(silver_inferences_kic.loc[silver_inferences_kic['chisq_reduced']>7])
 
 silver_inferences_kic_head = silver_inferences_kic[['kepid','sdss_id','Teff','logg','feh','mg_h','Age','Dnu','chisq_reduced']].head(n=10)
 print(silver_inferences_kic_head)
@@ -82,6 +84,29 @@ print(np.mean(silver_inferences_kic['chisq_reduced']))
 print(np.std(silver_inferences_kic['chisq_reduced']))
 print(np.median(silver_inferences_kic['chisq_reduced']))
 plt.hist(silver_inferences_kic['chisq_reduced'])
+plt.show()
+
+### compare with LEGACY ages
+legacy = pd.read_csv(path+'data/silva-aguirre-legacy.txt',sep='\s+')
+print("size of LEGACY: ", len(legacy))
+print(list(legacy.columns))
+
+legacy_silver_inference = pd.merge(legacy[['KIC','Age','sAgeP','sAgeM']], silver_inferences_kic[['kepid','Age_pred','Age_err']], left_on='KIC', right_on='kepid', how='inner')
+print("size of LEGACY-silver inference overlap: ", len(legacy_silver_inference))
+print(legacy_silver_inference)
+plt.plot(np.arange(0, 14), np.arange(0, 14), color='k', alpha=0.5)
+plt.errorbar(legacy_silver_inference['Age'], legacy_silver_inference['Age_pred'], xerr=[legacy_silver_inference['sAgeP'], -1*legacy_silver_inference['sAgeM']], yerr=legacy_silver_inference['Age_err'], linestyle='', marker='o', color="#1D5A0E", alpha=0.4)
+plt.xlabel(r"age [Gyr], Cannon")
+plt.ylabel(r"age [Gyr], LEGACY")
+plt.xlim([0, 14])
+plt.ylim([0, 14])
+x_rms = np.round(np.std(np.sqrt(0.5*(legacy_silver_inference['Age']-legacy_silver_inference['Age_pred'])**2)),2)
+x_std = np.round(np.std(legacy_silver_inference['Age']),2)
+plt.text(0.25, 13, r'$\sigma_{X_{LEGACY}-X_{Cannon}}$ = ' + f'{x_rms}', fontsize=15, horizontalalignment='left')
+plt.text(0.25, 12, r'$\sigma_{X_{LEGACY}}$ = ' + f'{x_std}', fontsize=15, horizontalalignment='left')
+plt.tight_layout()
+plt.savefig(path+'plots/legacy_age_silver_no_rgb.png')
+#plt.savefig(path+'plots/legacy_age_compare_no_rgb_limited.png')
 plt.show()
 quit()
 
