@@ -46,8 +46,9 @@ def histedges_equalN(x, nbin):
                      np.arange(npt),
                      np.sort(x))
 
-n, bins = np.histogram(preds['mg_fe'], histedges_equalN(preds['mg_fe'], nbins))
-print(n, bins)
+#n, bins = np.histogram(preds['mg_fe'], histedges_equalN(preds['mg_fe'], nbins))
+n, bins = np.histogram(preds['aspcap_fe_h'], histedges_equalN(preds['aspcap_fe_h'], nbins))
+#print(n, bins)
 
 # get largest and smallest bin ranges 
 print("bin diff: ", np.diff(bins))
@@ -65,16 +66,21 @@ spectra_paths = get_files_in_order(directory, training_names)
 wl,flux_single,ivar_single = process_spectra_chisq(spectra_paths[0],10) 
 label_names=["Teff", "logg", "feh", "mg_h", "Age", "Dnu"]
 
-"""
+#"""
 diff_apokasc_mean_test_ages = []
 diff_cannon_mean_test_ages = []
 diff_apokasc_mean_test_dnus = []
 diff_cannon_mean_test_dnus = []
+diff_apokasc_mean_test_teffs = []
+diff_cannon_mean_test_teffs = []
 mg_fes = []
+fehs = []
+loggs = []
 # for each Mg/Fe bin, separately train The Cannon on the rest of the stars
 for i in range(nbins): # nbins-1 for Ness test; nbins for original Fig 2
     # split
-    leave_out = preds.loc[(preds['mg_fe']>bins[i]) & (preds['mg_fe']<=bins[i+1])]
+    #leave_out = preds.loc[(preds['mg_fe']>bins[i]) & (preds['mg_fe']<=bins[i+1])]
+    leave_out = preds.loc[(preds['aspcap_fe_h']>bins[i]) & (preds['aspcap_fe_h']<=bins[i+1])]
     leave_in = preds.loc[~preds.index.isin(leave_out.index)]
     
     # training labels
@@ -117,14 +123,17 @@ for i in range(nbins): # nbins-1 for Ness test; nbins for original Fig 2
         return test_labels, spec_fit_chisq
     
     # test one star at a time
+    test_teffs = []
     test_ages = []
     test_dnus = []
     for test_index in leave_out.index:
         test_label, chisq = _test_step(fluxes[test_index], ivars[test_index])
+        test_teff = test_label[0][0]
         test_age = test_label[0][4]
         test_dnu = test_label[0][5]
         test_ages.append(test_age)
         test_dnus.append(test_dnu)
+        test_teffs.append(test_teff)
         #test_labels_arr.append(test_label)
         #spec_fit_chisq_arr.append(chisq)
         #sdss_ids.append(df.iloc[test_index]['sdss_id'])
@@ -139,14 +148,14 @@ for i in range(nbins): # nbins-1 for Ness test; nbins for original Fig 2
     plt.ylim([0, 14])
     #plt.legend(bbox_to_anchor=(1., 1.05))
     #plt.text(0.5, 13., f'{np.round(bins[i],2)} <= [Mg/Fe] < {np.round(bins[i+1],2)}', fontsize=15)
-    plt.title(f'{np.round(bins[i],2)} <= [Mg/Fe] < {np.round(bins[i+1],2)}', fontsize=15)
+    plt.title(f'{np.round(bins[i],2)} <= [Fe/H] < {np.round(bins[i+1],2)}', fontsize=15)
     #cbar = plt.colorbar(im, cmap='viridis', label=r'Cannon model $\chi^2$ fit')
     x_rms = np.round(np.std(np.sqrt(0.5*(leave_out['Age_pred']-leave_out['Age'])**2)),2)
     x_std = np.round(np.std(leave_out['Age']),2)
     plt.text(13.5, 1.5, r'$\sigma_{X_{APOKASC}-X_{pred}}$ = ' + f'{x_rms}', fontsize=15, horizontalalignment='right')
     plt.text(13.5, 0.5, r'$\sigma_{X_{APOKASC}}$ = ' + f'{x_std}', fontsize=15, horizontalalignment='right')
     plt.tight_layout()
-    plt.savefig(path+f'plots/mg_fe_mono_abundance_{i}_age.png', format='png', bbox_inches='tight')
+    plt.savefig(path+f'plots/mg_fe_mono_abundance_{i}_age_bin_by_feh.png', format='png', bbox_inches='tight')
     plt.show()
 
     plt.axis('square')
@@ -157,71 +166,85 @@ for i in range(nbins): # nbins-1 for Ness test; nbins for original Fig 2
     plt.xlim([0, 140])
     plt.ylim([0, 140])
     #plt.legend(bbox_to_anchor=(1., 1.05))
-    plt.title(f'{np.round(bins[i],2)} <= [Mg/Fe] < {np.round(bins[i+1],2)}', fontsize=15)
+    plt.title(f'{np.round(bins[i],2)} <= [Fe/H] < {np.round(bins[i+1],2)}', fontsize=15)
     #cbar = plt.colorbar(im, cmap='viridis', label=r'Cannon model $\chi^2$ fit')
     x_rms = np.round(np.std(np.sqrt(0.5*(leave_out['Dnu_pred']-leave_out['Dnu'])**2)),2)
     x_std = np.round(np.std(leave_out['Dnu']),2)
     plt.text(135, 20, r'$\sigma_{X_{APOKASC}-X_{pred}}$ = ' + f'{x_rms}', fontsize=15, horizontalalignment='right')
     plt.text(135, 10, r'$\sigma_{X_{APOKASC}}$ = ' + f'{x_std}', fontsize=15, horizontalalignment='right')
     plt.tight_layout()
-    plt.savefig(path+f'plots/mg_fe_mono_abundance_{i}_dnu.png', format='png', bbox_inches='tight')
+    plt.savefig(path+f'plots/mg_fe_mono_abundance_{i}_dnu_bin_by_feh.png', format='png', bbox_inches='tight')
     plt.show()
 
     mean_test_ages = np.mean(test_ages)
-    mean_apokasc_ages = np.mean(leave_out['Age'])
+    #mean_apokasc_ages = np.mean(leave_out['Age'])
     diff_apokasc_mean_test_age = np.log10(leave_out['Age']) - np.log10(mean_test_ages)
-    diff_cannon_mean_test_age = np.log10(test_ages) - np.log10(mean_test_ages) # not leave_out['Age_pred'], which is the Cannon age derived from the full training set
+    diff_cannon_mean_test_age = np.log10(test_ages) - np.log10(mean_test_ages)
+    
     #diff_apokasc_mean_test_age = np.log10(leave_out['Age']) - np.log10(mean_apokasc_ages)
     #diff_cannon_mean_test_age = np.log10(test_ages) - np.log10(mean_apokasc_ages)
     diff_apokasc_mean_test_ages.extend(diff_apokasc_mean_test_age)
     diff_cannon_mean_test_ages.extend(diff_cannon_mean_test_age)
+    
     mg_fes.extend(leave_out['mg_fe'])
-    #print(diff_apokasc_mean_test_ages)
-    #print(diff_cannon_mean_test_ages)
+    fehs.extend(leave_out['aspcap_fe_h'])
+    loggs.extend(leave_out['aspcap_logg'])
 
     mean_test_dnus = np.mean(test_dnus)
     diff_apokasc_mean_test_dnu = np.log10(leave_out['Dnu']) - np.log10(mean_test_dnus)
-    diff_cannon_mean_test_dnu = np.log10(test_dnus) - np.log10(mean_test_dnus) # not leave_out['Age_pred'], which is the Cannon age derived from the full training set
+    diff_cannon_mean_test_dnu = np.log10(test_dnus) - np.log10(mean_test_dnus) 
     diff_apokasc_mean_test_dnus.extend(diff_apokasc_mean_test_dnu)
     diff_cannon_mean_test_dnus.extend(diff_cannon_mean_test_dnu)
 
+    mean_test_teffs = np.mean(test_teffs)
+    diff_apokasc_mean_test_teff = np.log10(leave_out['Teff']) - np.log10(mean_test_teffs)
+    diff_cannon_mean_test_teff = np.log10(test_teffs) - np.log10(mean_test_teffs) 
+    diff_apokasc_mean_test_teffs.extend(diff_apokasc_mean_test_teff)
+    diff_cannon_mean_test_teffs.extend(diff_cannon_mean_test_teff)
+
+quit()
 print(diff_apokasc_mean_test_ages)
 print(diff_cannon_mean_test_ages)
 print(mg_fes)
 mono_abundance_test_df = pd.DataFrame({'diff_apokasc_age': diff_apokasc_mean_test_ages, 'diff_cannon_age': diff_cannon_mean_test_ages, 
-                                       'diff_apokasc_dnu': diff_apokasc_mean_test_dnus, 'diff_cannon_dnu': diff_cannon_mean_test_dnus, 'mg_fe': mg_fes})
-mono_abundance_test_df.to_csv(path+'data/mono_abundance_ness_test.csv', index=False)
-quit()
-"""
+                                       'diff_apokasc_dnu': diff_apokasc_mean_test_dnus, 'diff_cannon_dnu': diff_cannon_mean_test_dnus, 
+                                       'diff_apokasc_teff': diff_apokasc_mean_test_teffs, 'diff_cannon_teff': diff_cannon_mean_test_teffs,
+                                       'mg_fe': mg_fes, 'feh': fehs, 'logg': loggs})
+mono_abundance_test_df.to_csv(path+'data/mono_abundance_ness_test_bin_by_logg.csv', index=False)
+#"""
 
-mono_abundance_test_df = pd.read_csv(path+'data/mono_abundance_ness_test.csv')
+mono_abundance_test_df = pd.read_csv(path+'data/mono_abundance_ness_test_bin_by_logg.csv')
 diff_apokasc_mean_test_ages = mono_abundance_test_df['diff_apokasc_age']
 diff_cannon_mean_test_ages = mono_abundance_test_df['diff_cannon_age']
 diff_apokasc_mean_test_dnus = mono_abundance_test_df['diff_apokasc_dnu']
 diff_cannon_mean_test_dnus = mono_abundance_test_df['diff_cannon_dnu']
+diff_apokasc_mean_test_teffs = mono_abundance_test_df['diff_apokasc_teff']
+diff_cannon_mean_test_teffs = mono_abundance_test_df['diff_cannon_teff']
 mg_fes = mono_abundance_test_df['mg_fe']
+fehs = mono_abundance_test_df['feh']
+loggs = mono_abundance_test_df['logg']
 
-plt.scatter(np.array(diff_apokasc_mean_test_ages), np.array(diff_cannon_mean_test_ages), c=mg_fes, cmap='viridis')
-plt.xlabel('log10(APOKASC age) - log10(mean test age)')
-plt.ylabel('log10(Cannon age) - log10(|Cannon age|)')
-plt.xlim([-1,1])
-plt.ylim([-1,1])
-plt.colorbar(label='ASPCAP [Mg/Fe]')
+plt.scatter(np.array(diff_apokasc_mean_test_ages), np.array(diff_cannon_mean_test_teffs), c=loggs, cmap='viridis')
+plt.xlabel('log10(APOKASC age) - log10(|Cannon age|)')
+plt.ylabel(r'log10(APOKASC $T_{eff}$) - log10(|Cannon $T_{eff}$|)')
+#plt.xlim([-1,1])
+#plt.ylim([-1,1])
+plt.colorbar(label='ASPCAP logg')
 plt.tight_layout()
-plt.savefig(path+'plots/mono_abundance_test_ages.png', format='png', bbox_inches='tight')
+#plt.savefig(path+'plots/mono_abundance_test_ages_teffs_bin_by_logg.png', format='png', bbox_inches='tight')
 plt.show()
 
-plt.scatter(np.array(diff_apokasc_mean_test_dnus), np.array(diff_cannon_mean_test_dnus), c=mg_fes, cmap='viridis')
-plt.xlabel(r'log10(APOKASC $\Delta\nu$) - log10(mean test $\Delta\nu$)')
-plt.ylabel(r'log10(Cannon $\Delta\nu$) - log10(|Cannon $\Delta\nu$|)')
-plt.xlim([-1,1])
-plt.ylim([-1,1])
-plt.colorbar(label='ASPCAP [Mg/Fe]')
+plt.scatter(np.array(diff_apokasc_mean_test_dnus), np.array(diff_cannon_mean_test_teffs), c=loggs, cmap='viridis')
+plt.xlabel(r'log10(APOKASC $\Delta\nu$) - log10(|Cannon $\Delta\nu$|)')
+plt.ylabel(r'log10(APOKASC $T_{eff}$) - log10(|Cannon $T_{eff}$|)')
+#plt.xlim([-1,1])
+#plt.ylim([-1,1])
+plt.colorbar(label='ASPCAP logg')
 plt.tight_layout()
-plt.savefig(path+'plots/mono_abundance_test_dnus.png', format='png', bbox_inches='tight')
+#plt.savefig(path+'plots/mono_abundance_test_dnus_teffs_bin_by_logg.png', format='png', bbox_inches='tight')
 plt.show()
 
-hist, xedges, yedges = np.histogram2d(np.array(diff_apokasc_mean_test_ages), np.array(diff_cannon_mean_test_ages), bins=[np.linspace(-1,1,20),np.linspace(-1,1,20)])
+hist, xedges, yedges = np.histogram2d(np.array(diff_apokasc_mean_test_ages), np.array(diff_cannon_mean_test_teffs), bins=[np.linspace(-0.5,0.5,20),np.linspace(-0.05,0.05,20)])
 hist = hist.T
 # Sum along columns
 column_sums = hist.sum(axis=0, keepdims=True)
@@ -235,31 +258,30 @@ fig, ax = plt.subplots(figsize=(8, 6))
 im = ax.pcolormesh(xedges, yedges, hist, cmap='Greys_r')
 
 #plt.hist2d(np.array(diff_apokasc_mean_test_ages), np.array(diff_cannon_mean_test_ages), bins=[np.linspace(-1,1,20),np.linspace(-1,1,20)], cmap='Greys_r')
-plt.xlabel('log10(APOKASC age) - log10(|Cannon age|)')
-plt.ylabel('log10(Cannon age) - log10(|Cannon age|)')
-plt.xlim([-1,1])
-plt.ylim([-1,1])
+plt.xlabel('log10(APOKASC age) - log10(mean test age)')
+plt.ylabel(r'log10(Cannon $T_{eff}$) - log10(mean test $T_{eff}$)')
+#plt.xlim([-1,1])
+#plt.ylim([-1,1])
 plt.tight_layout()
+#plt.savefig(path+'plots/mono_abundance_test_ndensity_age_teffs_bin_by_logg.png', format='png', bbox_inches='tight')
 #plt.savefig(path+'plots/mono_abundance_test_ndensity_age_normalized.png', format='png', bbox_inches='tight')
-plt.savefig(path+'plots/mono_abundance_test_ndensity_age.png', format='png', bbox_inches='tight')
 plt.show()
 
 ### And the same for Dnu
-hist, xedges, yedges = np.histogram2d(np.array(diff_apokasc_mean_test_dnus), np.array(diff_cannon_mean_test_dnus), bins=[np.linspace(-1,1,20),np.linspace(-1,1,20)])
+hist, xedges, yedges = np.histogram2d(np.array(diff_apokasc_mean_test_dnus), np.array(diff_cannon_mean_test_teffs), bins=[np.linspace(-0.05,0.05,20),np.linspace(-0.05,0.05,20)])
 hist = hist.T
 column_sums = hist.sum(axis=0, keepdims=True)
 hist_normalized = hist / column_sums
 hist_normalized = np.nan_to_num(hist_normalized, nan=0., posinf=0., neginf=0.)
 fig, ax = plt.subplots(figsize=(8, 6))
-#im = ax.pcolormesh(xedges, yedges, hist_normalized, cmap='Greys_r')
 im = ax.pcolormesh(xedges, yedges, hist, cmap='Greys_r')
-plt.xlabel(r'log10(APOKASC $\Delta\nu$) - log10(|Cannon $\Delta\nu$|)')
-plt.ylabel(r'log10(Cannon $\Delta\nu$) - log10(|Cannon $\Delta\nu$|)')
-plt.xlim([-1,1])
-plt.ylim([-1,1])
+plt.xlabel(r'log10(APOKASC $\Delta\nu$) - log10(mean test $\Delta\nu$)')
+plt.ylabel(r'log10(Cannon $T_{eff}$) - log10(mean test $T_{eff}$)')
+#plt.xlim([-1,1])
+#plt.ylim([-1,1])
 plt.tight_layout()
+#plt.savefig(path+'plots/mono_abundance_test_ndensity_dnu_teffs_bin_by_logg.png', format='png', bbox_inches='tight')
 #plt.savefig(path+'plots/mono_abundance_test_ndensity_dnu_normalized.png', format='png', bbox_inches='tight')
-plt.savefig(path+'plots/mono_abundance_test_ndensity_dnu.png', format='png', bbox_inches='tight')
 plt.show()
 quit()
 
