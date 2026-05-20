@@ -97,15 +97,10 @@ legacy = pd.read_csv(path+'data/silva-aguirre-legacy.txt',sep='\s+')
 print("size of LEGACY: ", len(legacy))
 print(list(legacy.columns))
 
+"""
 legacy_silver_inference = pd.merge(legacy[['KIC','Age','sAgeP','sAgeM']], silver_inferences_kic[['kepid','Age_pred','Age_err']], left_on='KIC', right_on='kepid', how='inner')
 print("size of LEGACY-silver inference overlap: ", len(legacy_silver_inference))
 print(legacy_silver_inference)
-
-legacy_silver_inference_init = pd.read_csv(path+'data/silver_legacy_inferences_kic_no_rgb_init.csv')
-legacy_silver_inference_init['Age_err'] = np.sqrt(legacy_silver_inference_init['sigma_star_age']**2 + 0.417**2)
-print(legacy_silver_inference_init[['kepid','Age_pred','Teff_pred','logg_pred']])
-quit()
-
 plt.plot(np.linspace(-0.4, 14, 10), np.linspace(-0.4, 14, 10), color='k', alpha=0.5)
 plt.errorbar(legacy_silver_inference['Age'], legacy_silver_inference['Age_pred'], xerr=[legacy_silver_inference['sAgeP'], -1*legacy_silver_inference['sAgeM']], yerr=legacy_silver_inference['Age_err'], linestyle='', marker='o', color="#1D5A0E", alpha=0.4)
 plt.xlabel(r"age [Gyr], Cannon")
@@ -120,7 +115,34 @@ plt.tight_layout()
 plt.savefig(path+'plots/legacy_age_silver_no_rgb.pdf', format='pdf', bbox_inches='tight')
 #plt.savefig(path+'plots/legacy_age_compare_no_rgb_limited.png')
 plt.show()
-quit()
+#quit()
+"""
+
+# # read in our inferred labels for the cross-match between LEGACY and our test set
+# legacy_silver_inference = pd.read_csv(path+'data/silver_legacy_inferences_kic_no_rgb_init.csv')
+# legacy_silver_inference['Age_err'] = np.sqrt(legacy_silver_inference['sigma_star_age']**2 + 0.417**2)
+
+# legacy_silver_inference_old = pd.read_csv(path+'data/silver_legacy_inferences_kic_no_rgb.csv')
+# print(legacy_silver_inference[['sdss_id','Age_pred','Teff_pred','logg_pred']])
+# print(legacy_silver_inference_old[['sdss_id','Age_pred','Teff_pred','logg_pred']])
+
+# # match this with LEGACY ages
+# legacy_silver_inference_crossmatch = pd.merge(legacy[['KIC','Age','sAgeP','sAgeM']], legacy_silver_inference[['kepid','Age_pred','Age_err']], left_on='KIC', right_on='kepid', how='inner')
+# plt.plot(np.linspace(-0.4, 14, 10), np.linspace(-0.4, 14, 10), color='k', alpha=0.5)
+# plt.errorbar(legacy_silver_inference_crossmatch['Age'], legacy_silver_inference_crossmatch['Age_pred'], xerr=[legacy_silver_inference_crossmatch['sAgeP'], -1*legacy_silver_inference_crossmatch['sAgeM']], yerr=legacy_silver_inference_crossmatch['Age_err'], linestyle='', marker='o', color="#1D5A0E", alpha=0.4)
+# plt.xlabel(r"age [Gyr], Cannon")
+# plt.ylabel(r"age [Gyr], LEGACY")
+# plt.xlim([-0.4, 14])
+# plt.ylim([-0.4, 14.])
+# x_rms = np.round(np.std(np.sqrt(0.5*(legacy_silver_inference_crossmatch['Age']-legacy_silver_inference_crossmatch['Age_pred'])**2)),2)
+# x_std = np.round(np.std(legacy_silver_inference_crossmatch['Age']),2)
+# plt.text(0.25, 13, r'$\sigma_{X_{LEGACY}-X_{Cannon}}$ = ' + f'{x_rms}', fontsize=15, horizontalalignment='left')
+# plt.text(0.25, 12, r'$\sigma_{X_{LEGACY}}$ = ' + f'{x_std}', fontsize=15, horizontalalignment='left')
+# plt.tight_layout()
+# plt.savefig(path+'plots/legacy_age_silver_no_rgb_init.pdf', format='pdf', bbox_inches='tight')
+# #plt.savefig(path+'plots/legacy_age_compare_no_rgb_limited.png')
+# plt.show()
+# quit()
 
 ### run below for the first time only!!!
 
@@ -130,8 +152,14 @@ training_names = bedell_kic_apogee['sdss_id'].astype(str)
 
 inferences_df_culled = pd.read_csv(path+'data/inferences_kic_culled.csv')
 
+# I don't need to process spectra for all ~3000 test set stars. Just the cross-match of the test set and the Silva Aguirre+ LEGACY sample.
+inference_legacy = pd.merge(legacy[['KIC','Age','sAgeP','sAgeM']], silver_inferences_kic, left_on='KIC', right_on='kepid', how='inner')
+print(list(inference_legacy.columns))
+print(inference_legacy)
+
 # use Aida's normalization code on the inference spectra
 directory = path+'data/kic_spectra/' 
+directory = path+'data/silva_aguirre_apogee_spectra/' 
 #spectra_paths = sorted(os.listdir(directory))
 spectra_paths = get_files_in_order(directory, training_names)
 label_names=["Teff", "logg", "feh", "mg_h", "Age", "Dnu"]
@@ -144,55 +172,25 @@ source_id_dr2s = []
 fluxes=[]
 ivars=[]
 success_sdss_ids=[]
-teffs = []
-e_teffs = []
-loggs = []
-e_loggs = []
-fe_hs = []
-e_fe_hs = []
-mg_hs = []
-e_mg_hs = []
 chisqs = []
 for spectra_path in spectra_paths: # toggle for short or full version
-	#wl,flux_single,ivar_single = process_spectra(spectra_path,10)
-	wl,flux_single,ivar_single = process_spectra_chisq(spectra_path,10) # 10 is the width of your Gaussian for continuum normalization
-	     
-    # looks like sdss_access failed for six spectra. handle these.
+	# looks like sdss_access failed for six spectra. handle these.
 	sdss_id = get_number_between(spectra_path, 'mwmStar-0.6.0-', '.fits')
+	print(sdss_id)
 
 	# if sdss_id is in the silver sample (or whatever the inference sample is), proceed. else, skip to next sdss_id
-	#print(sdss_id)
-	#print(inferences_df_culled['sdss_id'])
-	if sdss_id in list(inferences_df_culled['sdss_id']):
+	if sdss_id in list(inference_legacy['sdss_id']):
 		pass
 	else:
 		continue
+
+	#wl,flux_single,ivar_single = process_spectra(spectra_path,10)
+	wl,flux_single,ivar_single = process_spectra_chisq(spectra_path,10) # 10 is the width of your Gaussian for continuum normalization
 
 	fluxes.append(flux_single)
 	ivars.append(ivar_single)
 	success_sdss_ids.append(sdss_id)
      
-    # pull Gaia(?) stellar params from mwmLite
-	teff = hdul_lite[1].data[hdul_lite[1].data.sdss_id==sdss_id].teff[0]
-	e_teff = hdul_lite[1].data[hdul_lite[1].data.sdss_id==sdss_id].e_teff[0]
-	logg = hdul_lite[1].data[hdul_lite[1].data.sdss_id==sdss_id].logg[0]
-	e_logg = hdul_lite[1].data[hdul_lite[1].data.sdss_id==sdss_id].e_logg[0]
-	fe_h = hdul_lite[1].data[hdul_lite[1].data.sdss_id==sdss_id].fe_h[0]
-	e_fe_h = hdul_lite[1].data[hdul_lite[1].data.sdss_id==sdss_id].e_fe_h[0]
-	mg_h = hdul_lite[1].data[hdul_lite[1].data.sdss_id==sdss_id].mg_h[0]
-	e_mg_h = hdul_lite[1].data[hdul_lite[1].data.sdss_id==sdss_id].e_mg_h[0]
-	source_id_dr2 = hdul_lite[1].data[hdul_lite[1].data.sdss_id==sdss_id].gaia_dr2_source_id[0]
-	teffs.append(teff)
-	e_teffs.append(e_teff)
-	loggs.append(logg)
-	e_loggs.append(e_logg)
-	fe_hs.append(fe_h)
-	e_fe_hs.append(e_fe_h)
-	mg_hs.append(mg_h)
-	e_mg_hs.append(e_mg_h)
-	source_id_dr2s.append(source_id_dr2)
-	#sdss_ids.append(sdss_id)
-
 print("number of spectra: ", len(fluxes))
 print("wl: ", wl)
 
@@ -216,7 +214,7 @@ for i in tqdm(range(len(fluxes))):
     ivar = ivars[i]
     labels, cov, metadata = model.test(flux, ivar, initial_labels=training_labels) # upon Andy's suggestion, for LEGACY comparison only; these are training set label averages
     #labels, cov, metadata = model.test(flux, ivar) # original
-    #print("labels, cov, metadata: ", labels, cov, metadata)
+    print("labels, cov, metadata: ", labels, cov, metadata)
     labels_arr.append(labels)
     
     # use cov to propagate per-star, per-visit uncertainty 
@@ -236,53 +234,22 @@ for i in tqdm(range(len(fluxes))):
     #print("chisq: ", spec_fit_chisq)
     chisqs.append(spec_fit_chisq)
 
-#print(len(chisqs))
-#print(len(fluxes))
-#print(len(teffs))
-#print(len(success_sdss_ids))
-
-# these are our actual inference set
+# joint LEGACY and our test set
 silver = pd.DataFrame()
 silver['sdss_id'] = success_sdss_ids
-silver['source_id_dr2'] = source_id_dr2s
 silver['chisq'] = chisqs
-silver['mg_h'] = mg_hs # I originally only queried mg_h but not e_mg_h, so we need to quickly grab these for the silver sample
-silver['e_mg_h'] = e_mg_hs
 
-# initial inference set, pre-training set parameter space culling
+# map sdss_id to KIC
 preds = pd.DataFrame()
 preds['kepid'] = bedell_kic_apogee['kepid']
 preds['source_id'] = bedell_kic_apogee['source_id']
 preds['sdss_id'] = bedell_kic_apogee['sdss_id']
-preds['teff'] = bedell_kic_apogee['teff']
-preds['teff_err1'] = bedell_kic_apogee['teff_err1']
-preds['teff_err2'] = bedell_kic_apogee['teff_err2']
-preds['logg'] = bedell_kic_apogee['logg']
-preds['logg_err1'] = bedell_kic_apogee['logg_err1']
-preds['logg_err2'] = bedell_kic_apogee['logg_err2']
-preds['feh'] = bedell_kic_apogee['feh']
-preds['feh_err1'] = bedell_kic_apogee['feh_err1']
-preds['feh_err2'] = bedell_kic_apogee['feh_err2']
-#preds['mg_h'] = bedell_kic_apogee['mg_h']
 
 # looks like sdss_access failed for six spectra. handle these.
 preds = preds.loc[preds['sdss_id'].isin(np.array(success_sdss_ids))]
 
 # enrich silver inference sample with ASPCAP parameters and Kepid
 silver_preds = pd.merge(silver, preds, on='sdss_id', how='inner')
-
-"""
-# these are ASPCAP? Gaia? parameters. Check against ASPCAP to be sure.
-preds['teff'] = teffs
-preds['e_teff'] = e_teffs
-preds['logg_aspcap'] = loggs
-preds['e_logg_aspcap'] = e_loggs
-preds['fe_h'] = fe_hs
-preds['e_fe_h'] = e_fe_hs
-preds['mg_h_aspcap'] = mg_hs
-preds['e_mg_h'] = e_mg_hs
-preds['source_id_dr2'] = source_id_dr2s
-"""
 
 # these are our Cannon-predicted parameters
 silver_preds['Teff_pred'] = np.array(labels_arr)[:,0][:,0]
@@ -299,4 +266,4 @@ silver_preds['sigma_star_age'] = np.array(sigma_stars)[:,0][:,4]
 silver_preds['sigma_star_Dnu'] = np.array(sigma_stars)[:,0][:,5]
 
 print(silver_preds)
-silver_preds.to_csv(path+'data/silver_inferences_kic_no_rgb_init.csv', index=False)
+silver_preds.to_csv(path+'data/silver_legacy_inferences_kic_no_rgb_init.csv', index=False)

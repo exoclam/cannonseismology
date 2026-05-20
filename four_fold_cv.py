@@ -102,6 +102,7 @@ ivars = np.genfromtxt(path+'data/ivars_norm_no_rgb.txt', delimiter=',')#[:,:-1]
 
 # run this once to grab wavelengths the lazy way
 wl,flux_single,ivar_single = process_spectra_chisq(spectra_paths[0],10) 
+#plt.plot(wl, flux_single, label='Gaussian filter-normalized')
 
 """
 temp_sdss_ids = []
@@ -114,6 +115,49 @@ for spectra_path in spectra_paths:
 np.savetxt(path+'data/fluxes_norm_no_rgb.txt', fluxes, delimiter=',', newline='\n')
 np.savetxt(path+'data/ivars_norm_no_rgb.txt', ivars, delimiter=',', newline='\n')
 quit()
+"""
+
+# this is just to inspect the spectra of our continuum normalization vs APOGEE's
+temp_sdss_ids = []
+fluxes=[]
+ivars=[]
+young_alpha_rich_sdss_ids = [67441568, 67467982, 67462311, 67660517, 67151930, 67706269, 67595221, 67599039, 67695139, 67696414]
+for spectra_path in spectra_paths:
+	if int(spectra_path.split('-')[-1].replace('.fits', '')) in young_alpha_rich_sdss_ids:
+
+		wl,flux_single,ivar_single = process_spectra_chisq(spectra_path,10) # 10 is the width of your Gaussian for continuum normalization
+		wl_unnorm,flux_single_unnorm,ivar_single_unnorm = process_spectra_chisq_unnorm(spectra_path,10)
+
+		plt.plot(wl, flux_single/np.nanmedian(flux_single), label='Gaussian filter-normalized')
+		plt.plot(wl_unnorm, flux_single_unnorm/np.nanmedian(flux_single_unnorm), label='APOGEE normalized')
+		plt.xlabel('Wavelength [Angstroms]')
+		plt.ylabel('Normalized Flux')
+		plt.title(f'SDSS ID: {spectra_path.split("-")[-1].replace(".fits", "")}')
+		plt.legend()
+		plt.savefig(path+f'plots/continuum_norm_comparison_sdss_id_{spectra_path.split("-")[-1].replace(".fits", "")}.png')
+		plt.show()
+
+quit()
+
+# same, but do it the unnormalized way (since APOGEE spectra are already continuum normalized)
+wl,flux_single,ivar_single = process_spectra_chisq_unnorm(spectra_paths[4],10)
+fluxes = np.genfromtxt(path+'data/fluxes_unnorm_no_rgb.txt', delimiter=',')
+ivars = np.genfromtxt(path+'data/ivars_unnorm_no_rgb.txt', delimiter=',')
+# plt.plot(wl, flux_single/np.nanmedian(flux_single), label='APOGEE normalized')
+# plt.ylim([0.4, 1.3])
+# plt.xlim([15850, 16400])
+# plt.legend()
+# plt.show()
+"""
+temp_sdss_ids = []
+fluxes=[]
+ivars=[]
+for spectra_path in spectra_paths:
+	wl,flux_single,ivar_single = process_spectra_chisq_unnorm(spectra_path,10) # 10 is the width of your Gaussian for continuum normalization
+	fluxes.append(flux_single)
+	ivars.append(ivar_single)
+np.savetxt(path+'data/fluxes_unnorm_no_rgb.txt', fluxes, delimiter=',', newline='\n')
+np.savetxt(path+'data/ivars_unnorm_no_rgb.txt', ivars, delimiter=',', newline='\n')
 """
 
 def cv(df, wl, fluxes, ivars, label_names=["Teff", "logg", "feh", "mg_h", "Age", "Dnu", "numax"]):
@@ -189,7 +233,7 @@ def cv(df, wl, fluxes, ivars, label_names=["Teff", "logg", "feh", "mg_h", "Age",
 			
 			# test step
 			test_labels, cov_val, metadata_val = model.test(fluxes_test, ivars_test)
-			#print("test, cov, metadata: ", test_labels, cov_val, metadata_val)
+			print("test, cov, metadata: ", test_labels, cov_val, metadata_val)
 		
 			# use cov to propagate per-star, per-visit uncertainty 
 			matrix = np.zeros((len(cov_val),len(label_names))) # Pre-allocate matrix
@@ -244,11 +288,20 @@ preds = pd.merge(df, preds, on='sdss_id')
 #preds['Age_apokasc'] = df['Age']
 #preds['Dnu_apokasc'] = df['Dnu']
 print(preds)
-preds.to_csv(path+'data/4_fold_cv_no_rgb.csv', index=False) # 4_fold_cv.csv, 4_fold_cv_ruwe.csv, 4_fold_cv_teff.csv
-quit()
+preds.to_csv(path+'data/4_fold_cv_no_rgb_unnorm.csv', index=False) # 4_fold_cv.csv, 4_fold_cv_ruwe.csv, 4_fold_cv_teff.csv
+#quit()
 """
 
 preds = pd.read_csv(path+'data/4_fold_cv_no_rgb.csv')
+preds['mg_fe'] = preds['mg_h'] - preds['feh']
+preds_young_alpha_rich = preds.loc[(preds['Age'] <= 6) & (preds['mg_fe'] >= 0.1)]
+print(preds_young_alpha_rich[['KIC', 'sdss_id', 'Age_pred', 'chisq']])
+preds = pd.read_csv(path+'data/4_fold_cv_no_rgb_unnorm.csv')
+preds['mg_fe'] = preds['mg_h'] - preds['feh']
+preds_young_alpha_rich = preds.loc[(preds['Age'] <= 6) & (preds['mg_fe'] >= 0.1)]
+print(preds_young_alpha_rich[['KIC', 'sdss_id', 'Age_pred', 'chisq']])
+quit()
+
 #plt.hist(preds['Age'], density=True, label='no RGB')
 #plt.xlabel('age [Gyr]')
 #plt.legend()
@@ -265,6 +318,7 @@ print(preds.loc[preds['chisq']/reduced_chisq_modifier>4])
 # plt.tight_layout()
 # plt.show()
 
+"""
 # introduce LEGACY sample to put everything relevant in the same plot
 legacy = pd.read_csv(path+'data/silva-aguirre-legacy.txt',sep='\s+')
 bedell = Table.read('/Users/chrislam/Desktop/psps/data/kepler_dr3_good.fits')
@@ -276,8 +330,9 @@ lite_source_ids = hdul_lite[1].data.gaia_dr3_source_id
 
 # use DR3 source_id to get sdss_id from mwmLite
 legacy_bedell_apogee = legacy_bedell.loc[legacy_bedell['source_id'].isin(lite_source_ids)]
+"""
 
-#"""
+"""
 ### Kiel diagram: Teff vs logg
 #plt.scatter(nataf_aspcap_cull['aspcap_teff'], nataf_aspcap_cull['aspcap_logg'], s=5, alpha=0.5, label='Nataf+24', color='pink')
 #plt.scatter(berger_aspcap_cull['aspcap_teff'], berger_aspcap_cull['aspcap_logg'], s=5, alpha=0.5, label='Berger+20', color='pink', marker='s')
@@ -300,7 +355,7 @@ plt.legend(loc='upper left', bbox_to_anchor=(0.02, 1.0), fontsize='medium')
 plt.tight_layout()
 plt.savefig(path+'plots/kiel_our_sample_only.png')
 plt.show()
-#"""
+"""
 
 ### rmse per fold
 def compute_rmse(preds, cannon, aspcap):
@@ -375,33 +430,35 @@ preds_young_alpha_rich = preds.loc[(preds['Age'] <= 6) & (preds['mg_fe'] >= 0.1)
 print(preds_young_alpha_rich)
 print(max(preds['chisq']))
 
-min_teff = np.min(pd.concat([preds['Teff'], preds['Teff_pred']]))
-max_teff = np.max(pd.concat([preds['Teff'], preds['Teff_pred']]))
+min_teff = np.min(pd.concat([preds['Teff'], preds['Teff_pred']])) - 50
+max_teff = np.max(pd.concat([preds['Teff'], preds['Teff_pred']])) + 50
 plt.plot([min_teff,max_teff], [min_teff,max_teff], color='k', zorder=1)
-im = plt.scatter(preds['Teff'], preds['Teff_pred'], alpha=0.7, c=preds['chisq']/reduced_chisq_modifier, vmax=max(preds['chisq'])/reduced_chisq_modifier, zorder=2)
-im_young_alpha_rich = plt.scatter(preds_young_alpha_rich['Teff'], preds_young_alpha_rich['Teff_pred'], facecolors='none', edgecolors='magenta', linewidths=2, zorder=2)
+im = plt.scatter(preds['Teff'], preds['Teff_pred'], c=preds['chisq']/reduced_chisq_modifier, vmax=max(preds['chisq'])/reduced_chisq_modifier, facecolors='none', edgecolors="k", linewidths=1, zorder=2)
+im_young_alpha_rich = plt.scatter(preds_young_alpha_rich['Teff'], preds_young_alpha_rich['Teff_pred'], facecolors='none', edgecolors="darkorange", linewidths=2, zorder=2)
 plt.ylabel(r"$T_{\rm eff}$ [K], Cannon, CV")
 plt.xlabel(r"$T_{\rm eff}$ [K], ASPCAP")
 #x_rms = int(np.std(preds['Teff_pred']-preds['Teff']))
 x_rms = int(np.std(np.sqrt(0.5 * (preds['Teff_pred'] - preds['Teff'])**2)))
 x_std = int(np.std(preds['Teff']))
-plt.text(5150, 6400, r'$\sigma_{X_{APOKASC}-X_{pred}}$ = ' + f'{x_rms}', fontsize=15)
-plt.text(5150, 6300, r'$\sigma_{X_{APOKASC}}$ = ' + f'{x_std}', fontsize=15)
+plt.text(5150, 6350, r'$\sigma_{X_{APOKASC}-X_{pred}}$ = ' + f'{x_rms}', fontweight=500, fontsize=15)
+plt.text(5150, 6250, r'$\sigma_{X_{APOKASC}}$ = ' + f'{x_std}', fontweight=500, fontsize=15)
 x_rms_pink = int(np.std(np.sqrt(0.5 * (preds_young_alpha_rich['Teff_pred'] - preds_young_alpha_rich['Teff'])**2)))
 x_std_pink = int(np.std(preds_young_alpha_rich['Teff']))
-plt.text(6400, 5300, r'$\sigma_{X_{APOKASC}-X_{pred}}$ = ' + f'{x_rms_pink}', fontsize=15, c='magenta', horizontalalignment='right')
-plt.text(6400, 5200, r'$\sigma_{X_{APOKASC}}$ = ' + f'{x_std_pink}', fontsize=15, c='magenta', horizontalalignment='right')
+plt.text(6400, 5300, r'$\sigma_{X_{APOKASC}-X_{pred}}$ = ' + f'{x_rms_pink}', fontsize=15, fontweight=550, c='#E67E00', horizontalalignment='right')
+plt.text(6400, 5200, r'$\sigma_{X_{APOKASC}}$ = ' + f'{x_std_pink}', fontsize=15, fontweight=550, c='#E67E00', horizontalalignment='right')
 cbar = plt.colorbar(im, cmap='viridis', label=r'Cannon $\chi_{red}^2$')
+plt.xlim(min_teff, max_teff)
+plt.ylim(min_teff, max_teff)
 plt.tight_layout()
-plt.savefig(path+'plots/cv/4_fold_cv_teff'+modifier+'.png')
+plt.savefig(path+'plots/cv/unnorm_4_fold_cv_teff'+modifier+'.png', format='png')
 plt.show()
 #print("teff rms: ", np.std(preds['Teff_pred']-preds['Teff']), "teff APOKASC scatter: ", np.std(preds['Teff']))
 
-min_logg = np.min(pd.concat([preds['logg'], preds['logg_pred']]))
-max_logg = np.max(pd.concat([preds['logg'], preds['logg_pred']]))
+min_logg = np.min(pd.concat([preds['logg'], preds['logg_pred']])) - 0.05
+max_logg = np.max(pd.concat([preds['logg'], preds['logg_pred']])) + 0.05
 plt.plot([min_logg,max_logg], [min_logg,max_logg], color='k', zorder=1)
-im = plt.scatter(preds['logg'], preds['logg_pred'], alpha=0.7, c=preds['chisq']/reduced_chisq_modifier, vmax=max(preds['chisq'])/reduced_chisq_modifier, zorder=2)
-im_young_alpha_rich = plt.scatter(preds_young_alpha_rich['logg'], preds_young_alpha_rich['logg_pred'], facecolors='none', edgecolors='magenta', linewidths=2, zorder=2)
+im = plt.scatter(preds['logg'], preds['logg_pred'], c=preds['chisq']/reduced_chisq_modifier, vmax=max(preds['chisq'])/reduced_chisq_modifier, facecolors='none', edgecolors="k", linewidths=1, zorder=2)
+im_young_alpha_rich = plt.scatter(preds_young_alpha_rich['logg'], preds_young_alpha_rich['logg_pred'], facecolors='none', edgecolors='#E67E00', linewidths=2, zorder=2)
 plt.ylabel(r"logg, Cannon, CV")
 plt.xlabel(r"logg, ASPCAP")
 #x_rms = np.round(np.std(preds['logg_pred']-preds['logg']),2)
@@ -411,84 +468,92 @@ plt.text(3.45, 4.4, r'$\sigma_{X_{APOKASC}-X_{pred}}$ = ' + f'{x_rms}', fontsize
 plt.text(3.45, 4.3, r'$\sigma_{X_{APOKASC}}$ = ' + f'{x_std}', fontsize=15)
 x_rms_pink = np.round(np.std(np.sqrt(0.5 * (preds_young_alpha_rich['logg_pred'] - preds_young_alpha_rich['logg'])**2)),2)
 x_std_pink = np.round(np.std(preds_young_alpha_rich['logg']),2)
-plt.text(4.42, 3.6, r'$\sigma_{X_{APOKASC}-X_{pred}}$ = ' + f'{x_rms_pink}', fontsize=15, c='magenta', horizontalalignment='right')
-plt.text(4.42, 3.5, r'$\sigma_{X_{APOKASC}}$ = ' + f'{x_std_pink}', fontsize=15, c='magenta', horizontalalignment='right')
+plt.text(4.42, 3.6, r'$\sigma_{X_{APOKASC}-X_{pred}}$ = ' + f'{x_rms_pink}', fontsize=15, fontweight=550, c='#E67E00', horizontalalignment='right')
+plt.text(4.42, 3.5, r'$\sigma_{X_{APOKASC}}$ = ' + f'{x_std_pink}', fontsize=15, fontweight=550, c='#E67E00', horizontalalignment='right')
 cbar = plt.colorbar(im, cmap='viridis', label=r'Cannon $\chi_{red}^2$')
+plt.xlim(min_logg, max_logg)
+plt.ylim(min_logg, max_logg)
 plt.tight_layout()
-plt.savefig(path+'plots/cv/4_fold_cv_logg'+ modifier +'.png')
+plt.savefig(path+'plots/cv/unnorm_4_fold_cv_logg'+ modifier +'.png', format='png')
 plt.show()
 
-min_feh = np.min(pd.concat([preds['feh'], preds['fe_h_pred']]))
-max_feh = np.max(pd.concat([preds['feh'], preds['fe_h_pred']]))
+min_feh = np.min(pd.concat([preds['feh'], preds['fe_h_pred']])) - 0.05
+max_feh = np.max(pd.concat([preds['feh'], preds['fe_h_pred']])) + 0.05
 plt.plot([min_feh,max_feh], [min_feh,max_feh], color='k', zorder=1)
-im = plt.scatter(preds['feh'], preds['fe_h_pred'], alpha=0.7, c=preds['chisq']/reduced_chisq_modifier, vmax=max(preds['chisq'])/reduced_chisq_modifier, zorder=2)
-im_young_alpha_rich = plt.scatter(preds_young_alpha_rich['feh'], preds_young_alpha_rich['fe_h_pred'], facecolors='none', edgecolors='magenta', linewidths=2, zorder=2)
+im = plt.scatter(preds['feh'], preds['fe_h_pred'], c=preds['chisq']/reduced_chisq_modifier, vmax=max(preds['chisq'])/reduced_chisq_modifier, facecolors='none', edgecolors="k", linewidths=1, zorder=2)
+im_young_alpha_rich = plt.scatter(preds_young_alpha_rich['feh'], preds_young_alpha_rich['fe_h_pred'], facecolors='none', edgecolors='#E67E00', linewidths=2, zorder=2)
 plt.ylabel(r"[Fe/H], Cannon, CV")
 plt.xlabel(r"[Fe/H], ASPCAP")
 #x_rms = np.round(np.std(preds['fe_h_pred']-preds['feh']),2)
 x_rms = np.round(np.std(np.sqrt(0.5*(preds['fe_h_pred']-preds['feh'])**2)),2)
 x_std = np.round(np.std(preds['feh']),2)
-plt.text(-0.85, 0.5, r'$\sigma_{X_{APOKASC}-X_{pred}}$ = ' + f'{x_rms}', fontsize=15)
-plt.text(-0.85, 0.4, r'$\sigma_{X_{APOKASC}}$ = ' + f'{x_std}', fontsize=15)
+plt.text(-0.8, 0.45, r'$\sigma_{X_{APOKASC}-X_{pred}}$ = ' + f'{x_rms}', fontsize=15)
+plt.text(-0.8, 0.35, r'$\sigma_{X_{APOKASC}}$ = ' + f'{x_std}', fontsize=15)
 #x_rms_pink = np.round(np.std(preds_young_alpha_rich['fe_h_pred']-preds_young_alpha_rich['feh']),2)
 x_rms_pink = np.round(np.std(np.sqrt(0.5 * (preds_young_alpha_rich['fe_h_pred'] - preds_young_alpha_rich['feh'])**2)),2)
 x_std_pink = np.round(np.std(preds_young_alpha_rich['feh']),2)
-plt.text(0.55, -0.7, r'$\sigma_{X_{APOKASC}-X_{pred}}$ = ' + f'{x_rms_pink}', fontsize=15, c='magenta', horizontalalignment='right')
-plt.text(0.55, -0.8, r'$\sigma_{X_{APOKASC}}$ = ' + f'{x_std_pink}', fontsize=15, c='magenta', horizontalalignment='right')
+plt.text(0.52, -0.7, r'$\sigma_{X_{APOKASC}-X_{pred}}$ = ' + f'{x_rms_pink}', fontsize=15, fontweight=550, c='#E67E00', horizontalalignment='right')
+plt.text(0.52, -0.8, r'$\sigma_{X_{APOKASC}}$ = ' + f'{x_std_pink}', fontsize=15, fontweight=550, c='#E67E00', horizontalalignment='right')
 cbar = plt.colorbar(im, cmap='viridis', label=r'Cannon $\chi_{red}^2$')
+plt.xlim(min_feh, max_feh)
+plt.ylim(min_feh, max_feh)
 plt.tight_layout()
-plt.savefig(path+'plots/cv/4_fold_cv_fe_h'+modifier+'.png')
+plt.savefig(path+'plots/cv/unnorm_4_fold_cv_fe_h'+modifier+'.png', format='png')
 plt.show()
 
-min_mg_h = np.min(pd.concat([preds['mg_h'], preds['mg_h_pred']]))
-max_mg_h = np.max(pd.concat([preds['mg_h'], preds['mg_h_pred']]))
+min_mg_h = np.min(pd.concat([preds['mg_h'], preds['mg_h_pred']])) - 0.05
+max_mg_h = np.max(pd.concat([preds['mg_h'], preds['mg_h_pred']])) + 0.05
 plt.plot([min_mg_h,max_mg_h], [min_mg_h,max_mg_h], color='k', zorder=1)
-im = plt.scatter(preds['mg_h'], preds['mg_h_pred'], alpha=0.7, c=preds['chisq']/reduced_chisq_modifier, vmax=max(preds['chisq'])/reduced_chisq_modifier, zorder=2)
-im_young_alpha_rich = plt.scatter(preds_young_alpha_rich['mg_h'], preds_young_alpha_rich['mg_h_pred'], facecolors='none', edgecolors='magenta', linewidths=2, zorder=2)
+im = plt.scatter(preds['mg_h'], preds['mg_h_pred'], c=preds['chisq']/reduced_chisq_modifier, vmax=max(preds['chisq'])/reduced_chisq_modifier, facecolors='none', edgecolors="k", linewidths=1, zorder=2)
+im_young_alpha_rich = plt.scatter(preds_young_alpha_rich['mg_h'], preds_young_alpha_rich['mg_h_pred'], facecolors='none', edgecolors='#E67E00', linewidths=2, zorder=2)
 plt.ylabel(r"[Mg/H], Cannon, CV")
 plt.xlabel(r"[Mg/H], ASPCAP")
 #x_rms = np.round(np.std(preds['mg_h_pred']-preds['mg_h']),2)
 x_rms = np.round(np.std(np.sqrt(0.5*(preds['mg_h_pred']-preds['mg_h'])**2)),2)
 x_std = np.round(np.std(preds['mg_h']),2)
-plt.text(-0.75, 0.45, r'$\sigma_{X_{APOKASC}-X_{pred}}$ = ' + f'{x_rms}', fontsize=15)
-plt.text(-0.75, 0.35, r'$\sigma_{X_{APOKASC}}$ = ' + f'{x_std}', fontsize=15)
+plt.text(-0.75, 0.42, r'$\sigma_{X_{APOKASC}-X_{pred}}$ = ' + f'{x_rms}', fontsize=15)
+plt.text(-0.75, 0.32, r'$\sigma_{X_{APOKASC}}$ = ' + f'{x_std}', fontsize=15)
 #x_rms_pink = np.round(np.std(preds_young_alpha_rich['mg_h_pred']-preds_young_alpha_rich['mg_h']),2)
 x_rms_pink = np.round(np.std(np.sqrt(0.5 * (preds_young_alpha_rich['mg_h_pred'] - preds_young_alpha_rich['mg_h'])**2)),2)
 x_std_pink = np.round(np.std(preds_young_alpha_rich['mg_h']),2)
-plt.text(0.5, -0.6, r'$\sigma_{X_{APOKASC}-X_{pred}}$ = ' + f'{x_rms_pink}', fontsize=15, c='magenta', horizontalalignment='right')
-plt.text(0.5, -0.7, r'$\sigma_{X_{APOKASC}}$ = ' + f'{x_std_pink}', fontsize=15, c='magenta', horizontalalignment='right')
+plt.text(0.52, -0.6, r'$\sigma_{X_{APOKASC}-X_{pred}}$ = ' + f'{x_rms_pink}', fontsize=15, fontweight=550, c='#E67E00', horizontalalignment='right')
+plt.text(0.52, -0.7, r'$\sigma_{X_{APOKASC}}$ = ' + f'{x_std_pink}', fontsize=15, fontweight=550, c='#E67E00', horizontalalignment='right')
 cbar = plt.colorbar(im, cmap='viridis', label=r'Cannon $\chi_{red}^2$')
+plt.xlim(min_mg_h, max_mg_h)
+plt.ylim(min_mg_h, max_mg_h)
 plt.tight_layout()
-plt.savefig(path+'plots/cv/4_fold_cv_mg_h'+modifier+'.png')
+plt.savefig(path+'plots/cv/unnorm_4_fold_cv_mg_h'+modifier+'.png', format='png')
 plt.show()
 
-min_Age = np.min(pd.concat([preds['Age'], preds['Age_pred']]))
-max_Age = np.max(pd.concat([preds['Age'], preds['Age_pred']]))
+min_Age = np.min(pd.concat([preds['Age'], preds['Age_pred']])) - 0.5
+max_Age = np.max(pd.concat([preds['Age'], preds['Age_pred']])) + 0.5
 plt.plot([min_Age,max_Age], [min_Age,max_Age], color='k', zorder=1)
-im = plt.scatter(preds['Age'], preds['Age_pred'], alpha=0.7, c=preds['chisq']/reduced_chisq_modifier, vmax=max(preds['chisq'])/reduced_chisq_modifier, zorder=2)
-im_young_alpha_rich = plt.scatter(preds_young_alpha_rich['Age'], preds_young_alpha_rich['Age_pred'], facecolors='none', edgecolors='magenta', linewidths=2, zorder=2)
+im = plt.scatter(preds['Age'], preds['Age_pred'], c=preds['chisq']/reduced_chisq_modifier, vmax=max(preds['chisq'])/reduced_chisq_modifier, facecolors='none', edgecolors="k", linewidths=1, zorder=2)
+im_young_alpha_rich = plt.scatter(preds_young_alpha_rich['Age'], preds_young_alpha_rich['Age_pred'], facecolors='none', edgecolors='#E67E00', linewidths=2, zorder=2)
 plt.ylabel(r"Age [Gyr], Cannon, CV")
 plt.xlabel(r"Age [Gyr], APOKASC")
 #x_rms = np.round(np.std(preds['Age_pred']-preds['Age']),2)
 x_rms = np.round(np.std(np.sqrt(0.5*(preds['Age_pred']-preds['Age'])**2)),2)
 x_std = np.round(np.std(preds['Age']),2)
-plt.text(0, 13, r'$\sigma_{X_{APOKASC}-X_{pred}}$ = ' + f'{x_rms}', fontsize=15)
-plt.text(0, 12, r'$\sigma_{X_{APOKASC}}$ = ' + f'{x_std}', fontsize=15)
+plt.text(0, 12.5, r'$\sigma_{X_{APOKASC}-X_{pred}}$ = ' + f'{x_rms}', fontsize=15)
+plt.text(0, 11.5, r'$\sigma_{X_{APOKASC}}$ = ' + f'{x_std}', fontsize=15)
 #x_rms_pink = np.round(np.std(preds_young_alpha_rich['Age_pred']-preds_young_alpha_rich['Age']),2)
 x_rms_pink = np.round(np.std(np.sqrt(0.5 * (preds_young_alpha_rich['Age_pred'] - preds_young_alpha_rich['Age'])**2)),2)
 x_std_pink = np.round(np.std(preds_young_alpha_rich['Age']),2)
-plt.text(13.5, 1, r'$\sigma_{X_{APOKASC}-X_{pred}}$ = ' + f'{x_rms_pink}', fontsize=15, horizontalalignment='right')
-plt.text(13.5, 0, r'$\sigma_{X_{APOKASC}}$ = ' + f'{x_std_pink}', fontsize=15, horizontalalignment='right')
+plt.text(13.5, 1, r'$\sigma_{X_{APOKASC}-X_{pred}}$ = ' + f'{x_rms_pink}', fontsize=15, fontweight=550, c='#E67E00', horizontalalignment='right')
+plt.text(13.5, 0, r'$\sigma_{X_{APOKASC}}$ = ' + f'{x_std_pink}', fontsize=15, fontweight=550, c='#E67E00', horizontalalignment='right')
 cbar = plt.colorbar(im, cmap='viridis', label=r'Cannon $\chi_{red}^2$')
+plt.xlim(min_Age, max_Age)
+plt.ylim(min_Age, max_Age)
 plt.tight_layout()
-plt.savefig(path+'plots/cv/4_fold_cv_Age'+modifier+'.png')
+plt.savefig(path+'plots/cv/unnorm_4_fold_cv_Age'+modifier+'.png', format='png')
 plt.show()
 
-min_Dnu = np.min(pd.concat([preds['Dnu'], preds['Dnu_pred']]))
-max_Dnu = np.max(pd.concat([preds['Dnu'], preds['Dnu_pred']]))
+min_Dnu = np.min(pd.concat([preds['Dnu'], preds['Dnu_pred']])) - 5
+max_Dnu = np.max(pd.concat([preds['Dnu'], preds['Dnu_pred']])) + 5
 plt.plot([min_Dnu,max_Dnu], [min_Dnu,max_Dnu], color='k', zorder=1)
-im = plt.scatter(preds['Dnu'], preds['Dnu_pred'], alpha=0.7, c=preds['chisq']/reduced_chisq_modifier, vmax=max(preds['chisq'])/reduced_chisq_modifier, zorder=2)
-im_young_alpha_rich = plt.scatter(preds_young_alpha_rich['Dnu'], preds_young_alpha_rich['Dnu_pred'], facecolors='none', edgecolors='magenta', linewidths=2, zorder=2)
+im = plt.scatter(preds['Dnu'], preds['Dnu_pred'], c=preds['chisq']/reduced_chisq_modifier, vmax=max(preds['chisq'])/reduced_chisq_modifier, facecolors='none', edgecolors="k", linewidths=1, zorder=2)
+im_young_alpha_rich = plt.scatter(preds_young_alpha_rich['Dnu'], preds_young_alpha_rich['Dnu_pred'], facecolors='none', edgecolors='#E67E00', linewidths=2, zorder=2)
 plt.ylabel(r'$\Delta \nu [\mu Hz]$, Cannon, CV')
 plt.xlabel(r'$\Delta \nu [\mu Hz]$, APOKASC')
 #x_rms = np.round(np.std(preds['Dnu_pred']-preds['Dnu']),2)
@@ -499,11 +564,13 @@ plt.text(25, 140, r'$\sigma_{X_{APOKASC}}$ = ' + f'{x_std}', fontsize=15)
 #x_rms_pink = np.round(np.std(preds_young_alpha_rich['Dnu_pred']-preds_young_alpha_rich['Dnu']),2)
 x_rms_pink = np.round(np.std(np.sqrt(0.5 * (preds_young_alpha_rich['Dnu_pred'] - preds_young_alpha_rich['Dnu'])**2)),2)
 x_std_pink = np.round(np.std(preds_young_alpha_rich['Dnu']),2)
-plt.text(155, 40, r'$\sigma_{X_{APOKASC}-X_{pred}}$ = ' + f'{x_rms_pink}', fontsize=15, horizontalalignment='right')
-plt.text(155, 30, r'$\sigma_{X_{APOKASC}}$ = ' + f'{x_std_pink}', fontsize=15, horizontalalignment='right')
+plt.text(155, 40, r'$\sigma_{X_{APOKASC}-X_{pred}}$ = ' + f'{x_rms_pink}', fontsize=15, fontweight=550, c='#E67E00', horizontalalignment='right')
+plt.text(155, 30, r'$\sigma_{X_{APOKASC}}$ = ' + f'{x_std_pink}', fontsize=15, fontweight=550, c='#E67E00', horizontalalignment='right')
 cbar = plt.colorbar(im, cmap='viridis', label=r'Cannon $\chi_{red}^2$')
+plt.xlim(min_Dnu, max_Dnu)
+plt.ylim(min_Dnu, max_Dnu)
 plt.tight_layout()
-plt.savefig(path+'plots/cv/4_fold_cv_Dnu'+modifier+'.png')
+plt.savefig(path+'plots/cv/unnorm_4_fold_cv_Dnu'+modifier+'.png', format='png')
 plt.show()
 quit()
 """

@@ -174,6 +174,51 @@ def _gauss_norm_chisq(flux,flux_err,ivar,wl,L):
     return wl_no_gaps,norm_flux,ivar
 
 
+def _gauss_unnorm_chisq(continuum, flux,flux_err,ivar,wl,L):
+    """Do everything except normalize the flux via Gaussian Filter; instead, just divide by APOGEE continuum
+    Args:
+        flux (array): flux array
+        flux_err (array): flux err array
+        wl (array): wavelength array
+        L (int): width of Gaussian
+    Returns:
+        array: Gaussian weight
+    """ 
+
+    take1 = np.logical_and(wl > 15150, wl < 15790)
+    take2 = np.logical_and(wl > 15870, wl < 16420)
+    take3 = np.logical_and(wl > 16490, wl < 16940)
+    takeit = np.logical_or(np.logical_or(take1, take2), take3)
+
+    flux_no_gaps = flux[takeit]
+    flux_err_no_gaps = flux_err[takeit]
+    ivar_no_gaps = ivar[takeit]
+    wl_no_gaps = wl[takeit]
+    continuum_no_gaps = continuum[takeit]
+
+    # wavelength range of HIRES spectra
+    length = len(flux_no_gaps)
+    
+    # initialize flux normalization array
+    #norms = np.ones(length) # instead of np.zeros and fill up with windowed median
+
+    # pretend to normalize
+    norm_flux = flux_no_gaps/continuum_no_gaps
+    norm_flux_err = flux_err_no_gaps/continuum_no_gaps
+
+    # adjust unrealistically low flux errs (mainly an issue with SNR>200 targets), specifically for chisq
+    norm_flux_err[norm_flux_err<=0.005] = 0.005
+
+    # make flux_err very large at bad pixels
+    npixels = len(norm_flux)
+    badpix = _get_pixmask(norm_flux, norm_flux_err)
+    ivar = np.full(npixels, 1/999**2)
+    ivar[~badpix] = 1. / norm_flux_err[~badpix]**2
+
+    print("spectrum normalized!")
+
+    return wl_no_gaps,norm_flux,ivar
+
 
 def process_spectra(file_path,L):
     """Combine all functions to process SDSS-V spectra 
@@ -262,6 +307,50 @@ def process_spectra_chisq(file_path,L,visit_flag=False):
 
     # divide spectrum by Gaussian-smoothed version of itself to remove large-scale shape
     wl,norm_flux,ivar = _gauss_norm_chisq(flux,flux_err,ivar,wl,L)
+
+    # mask out where sky subtraction failed
+    sky_mask = np.logical_or(norm_flux<0.4, norm_flux>1.2)
+    norm_flux[sky_mask] = np.median(norm_flux)
+
+    return wl,norm_flux,ivar
+
+def process_spectra_chisq_unnorm(file_path,L,visit_flag=False):
+    """Combine all functions to process spectra specifically for chisq calculation. 
+    Do not continuum-normalize the already-continuum-normalized spectra. 
+    Args:
+        file_path (string): path to SDSS spectrum .fits file
+        L (int): width of Gaussian - should be broader than typical absorption lines
+    Returns:
+        array: Gaussian weight
+    """ 
+
+    # read in file
+    print(file_path)
+    hdu_list = fits.open(file_path)
+
+    wl = np.array(hdu_list[3].data['wavelength'][0])
+    flux = np.array(hdu_list[3].data['flux'][0])
+    ivar = np.array(hdu_list[3].data['ivar'][0])
+    continuum = np.array(hdu_list[3].data['continuum'][0])
+    flags = np.array(hdu_list[3].data['pixel_flags'][0])
+    if visit_flag==False:
+        wl = np.array(hdu_list[3].data['wavelength'][0])
+    elif visit_flag==True: # for some reason, the Visit files don't have wl. Grab the Star files for those. 
+        sdss_id = hdu_list[0].header['SDSS_ID']
+        access.add('mwmStar', v_astra='0.6.0', component='', sdss_id=sdss_id)
+        access.set_stream()
+        access.commit()
+        
+        mwm_filename = access.full('mwmStar', v_astra='0.6.0', component='', sdss_id=sdss_id)
+        mwmStar = fits.open(mwm_filename)
+        wl = np.array(mwmStar[3].data['wavelength'][0])
+
+    flux_err = 1/np.sqrt(ivar)
+
+    #norm_flux = flux/continuum # this is now done in _gauss_unnorm_chisq()
+
+    # divide spectrum by Gaussian-smoothed version of itself to remove large-scale shape
+    wl,norm_flux,ivar = _gauss_unnorm_chisq(continuum, flux,flux_err,ivar,wl,L)
 
     # mask out where sky subtraction failed
     sky_mask = np.logical_or(norm_flux<0.4, norm_flux>1.2)

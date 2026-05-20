@@ -146,7 +146,7 @@ for i in range(nbins): # nbins-1 for Ness test; nbins for original Fig 2
     plt.text(13.5, 1.5, r'$\sigma_{X_{APOKASC}-X_{pred}}$ = ' + f'{x_rms}', fontsize=15, horizontalalignment='right')
     plt.text(13.5, 0.5, r'$\sigma_{X_{APOKASC}}$ = ' + f'{x_std}', fontsize=15, horizontalalignment='right')
     plt.tight_layout()
-    plt.savefig(path+f'plots/mg_fe_mono_abundance_{i}_age.png', format='png', bbox_inches='tight')
+    plt.savefig(path+f'plots/mg_fe_mono_abundance_{i}_age.pdf', format='pdf', bbox_inches='tight')
     plt.show()
 
     plt.axis('square')
@@ -164,7 +164,7 @@ for i in range(nbins): # nbins-1 for Ness test; nbins for original Fig 2
     plt.text(135, 20, r'$\sigma_{X_{APOKASC}-X_{pred}}$ = ' + f'{x_rms}', fontsize=15, horizontalalignment='right')
     plt.text(135, 10, r'$\sigma_{X_{APOKASC}}$ = ' + f'{x_std}', fontsize=15, horizontalalignment='right')
     plt.tight_layout()
-    plt.savefig(path+f'plots/mg_fe_mono_abundance_{i}_dnu.png', format='png', bbox_inches='tight')
+    plt.savefig(path+f'plots/mg_fe_mono_abundance_{i}_dnu.pdf', format='pdf', bbox_inches='tight')
     plt.show()
 
     mean_test_ages = np.mean(test_ages)
